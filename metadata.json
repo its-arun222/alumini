@@ -1,0 +1,6 @@
+{
+  "name": "MAIT Alumni Connect",
+  "description": "An integrated Alumni Ecosystem for Maharaja Agrasen Institute of Technology (MAIT) featuring role-based dashboards, CST alumni directory, opportunities board, mentorship matching, and Gemini-powered career guidance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
