@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   UserRole, 
   StudentProfile, 
@@ -22,6 +22,8 @@ import {
   moderateOpportunity,
   moderateProfileUpdate
 } from './utils/alumni-ecosystem';
+
+import { fetchState, persistChanges } from './lib/api';
 
 import { Navbar } from './components/Navbar';
 import { LoginPage } from './components/LoginPage';
@@ -49,6 +51,21 @@ export default function App() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>(INITIAL_OPPORTUNITIES);
   const [mentorshipRequests, setMentorshipRequests] = useState<MentorshipRequest[]>(INITIAL_MENTORSHIP_REQUESTS);
   const [pendingUpdates, setPendingUpdates] = useState<PendingProfileUpdate[]>(INITIAL_PENDING_UPDATES);
+
+  // Load persisted data from the database (falls back to bundled mock data if unavailable)
+  useEffect(() => {
+    fetchState().then((s) => {
+      if (!s) return;
+      if (s.student) setStudent(s.student);
+      setAlumniList(s.alumniList);
+      setOpportunities(s.opportunities);
+      setMentorshipRequests(s.mentorshipRequests);
+      setPendingUpdates(s.pendingUpdates);
+      if (s.alumniList.length && !s.alumniList.some((a) => a.id === 'alumni-priya-goel')) {
+        setSelectedAlumniId(s.alumniList[0].id);
+      }
+    });
+  }, []);
 
   // Modals
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
@@ -85,18 +102,21 @@ export default function App() {
   const handleSubmitMentorshipRequest = (data: any) => {
     const updated = createMentorshipRequest(mentorshipRequests, data);
     setMentorshipRequests(updated);
+    persistChanges('mentorshipRequests', mentorshipRequests, updated);
     showToast(`Mentorship request submitted to ${data.alumniName}! Check status in Mentorship Hub.`);
   };
 
   const handleAcceptMentorship = (requestId: string, note?: string, meetingUrl?: string) => {
     const updated = acceptMentorshipRequest(mentorshipRequests, requestId, note, meetingUrl);
     setMentorshipRequests(updated);
+    persistChanges('mentorshipRequests', mentorshipRequests, updated);
     showToast('Mentorship request accepted! Meeting details shared with student.');
   };
 
   const handleDeclineMentorship = (requestId: string, note?: string) => {
     const updated = declineMentorshipRequest(mentorshipRequests, requestId, note);
     setMentorshipRequests(updated);
+    persistChanges('mentorshipRequests', mentorshipRequests, updated);
     showToast('Mentorship request declined. Notification sent to student.');
   };
 
@@ -106,6 +126,7 @@ export default function App() {
 
     const updated = toggleOpportunityRegistration(opportunities, opportunityId, student.id);
     setOpportunities(updated);
+    persistChanges('opportunities', opportunities, updated);
 
     if (wasRegistered) {
       showToast('Registration cancelled.');
@@ -116,6 +137,7 @@ export default function App() {
 
   const handlePostOpportunity = (newOpp: Opportunity) => {
     setOpportunities((prev) => [newOpp, ...prev]);
+    persistChanges('opportunities', [], [newOpp]);
     if (newOpp.status === 'approved') {
       showToast('Opportunity published live to the feed!');
     } else {
@@ -126,6 +148,7 @@ export default function App() {
   const handleModerateOpportunity = (opportunityId: string, action: 'approved' | 'rejected') => {
     const updated = moderateOpportunity(opportunities, opportunityId, action);
     setOpportunities(updated);
+    persistChanges('opportunities', opportunities, updated);
     showToast(`Opportunity marked as ${action.toUpperCase()}`);
   };
 
@@ -143,20 +166,17 @@ export default function App() {
     );
     setPendingUpdates(updatedPendingUpdates);
     setAlumniList(updatedAlumniList);
+    persistChanges('pendingUpdates', pendingUpdates, updatedPendingUpdates);
+    persistChanges('alumni', alumniList, updatedAlumniList);
     showToast(`Alumni profile update marked as ${action.toUpperCase()} and synced to Directory`);
   };
 
   const handleToggleMentorshipAvailability = () => {
-    setAlumniList((prev) =>
-      prev.map((a) => {
-        if (a.id === activeAlumni.id) {
-          const nextState = !a.isAvailableForMentoring;
-          showToast(`Mentoring status set to: ${nextState ? 'Open for 1:1 Mentoring' : 'Mentoring Paused'}`);
-          return { ...a, isAvailableForMentoring: nextState };
-        }
-        return a;
-      })
-    );
+    const nextState = !activeAlumni.isAvailableForMentoring;
+    const updated = { ...activeAlumni, isAvailableForMentoring: nextState };
+    setAlumniList((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    persistChanges('alumni', [activeAlumni], [updated]);
+    showToast(`Mentoring status set to: ${nextState ? 'Open for 1:1 Mentoring' : 'Mentoring Paused'}`);
   };
 
   // If user is not yet logged in, show the institutional password authentication page
@@ -343,6 +363,7 @@ export default function App() {
         alumni={activeAlumni}
         onSubmitUpdate={(newUpdate) => {
           setPendingUpdates((prev) => [newUpdate, ...prev]);
+          persistChanges('pendingUpdates', [], [newUpdate]);
           showToast('Profile update submitted to MAIT CST Admin for review!');
         }}
       />
