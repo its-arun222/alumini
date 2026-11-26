@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { Opportunity, PendingProfileUpdate, AlumniProfile, MentorshipRequest } from '../types';
+import {
+  StudentProfile,
+  Opportunity,
+  PendingProfileUpdate,
+  AlumniProfile,
+  MentorshipRequest,
+} from '../types';
+import { DbActivityEntry } from '../lib/firestoreService';
+import { LiveDatabaseInspector } from './LiveDatabaseInspector';
 import { 
   ShieldCheck, 
   CheckCircle2, 
@@ -11,34 +19,53 @@ import {
   Check, 
   X,
   FileText,
-  Sparkles
+  Sparkles,
+  Database
 } from 'lucide-react';
 
 interface AdminDashboardProps {
+  students: StudentProfile[];
   opportunities: Opportunity[];
   pendingUpdates: PendingProfileUpdate[];
   alumniList: AlumniProfile[];
   mentorshipRequests: MentorshipRequest[];
+  activityLog: DbActivityEntry[];
+  lastSyncedAt: string | null;
+  isRefreshingDb: boolean;
+  onRefreshDatabase: () => Promise<void>;
+  onClearActivityLog: () => void;
   onModerateOpportunity: (opportunityId: string, action: 'approved' | 'rejected') => void;
   onModerateProfileUpdate: (updateId: string, action: 'approved' | 'rejected', remark?: string) => void;
   onNavigateTab: (tab: string) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  students,
   opportunities,
   pendingUpdates,
   alumniList,
   mentorshipRequests,
+  activityLog,
+  lastSyncedAt,
+  isRefreshingDb,
+  onRefreshDatabase,
+  onClearActivityLog,
   onModerateOpportunity,
   onModerateProfileUpdate,
   onNavigateTab,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'opps' | 'profiles' | 'all-opps'>('opps');
+  const [activeSubTab, setActiveSubTab] = useState<'opps' | 'profiles' | 'all-opps' | 'live-db'>('opps');
 
   const pendingOpportunities = opportunities.filter((o) => o.status === 'pending');
   const pendingProfileUpdates = pendingUpdates.filter((u) => u.status === 'pending');
 
   const totalPendingCount = pendingOpportunities.length + pendingProfileUpdates.length;
+  const totalFirestoreDocs =
+    students.length +
+    alumniList.length +
+    opportunities.length +
+    mentorshipRequests.length +
+    pendingUpdates.length;
 
   return (
     <div className="space-y-6">
@@ -120,10 +147,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Moderation Navigation Sub-tabs */}
-      <div className="border-b border-slate-200 flex items-center space-x-2">
+      <div className="border-b border-slate-200 flex items-center space-x-2 overflow-x-auto">
         <button
           onClick={() => setActiveSubTab('opps')}
-          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
             activeSubTab === 'opps'
               ? 'border-blue-600 text-blue-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -140,7 +167,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <button
           onClick={() => setActiveSubTab('profiles')}
-          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
             activeSubTab === 'profiles'
               ? 'border-blue-600 text-blue-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -157,7 +184,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <button
           onClick={() => setActiveSubTab('all-opps')}
-          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
+          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
             activeSubTab === 'all-opps'
               ? 'border-blue-600 text-blue-700'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -165,6 +192,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         >
           <FileText className="w-4 h-4" />
           <span>All Opportunities ({opportunities.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('live-db')}
+          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+            activeSubTab === 'live-db'
+              ? 'border-blue-600 text-blue-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Database className="w-4 h-4" />
+          <span>Live Database</span>
+          <span className="px-2 py-0.5 rounded-full text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
+            {totalFirestoreDocs}
+          </span>
         </button>
       </div>
 
@@ -454,6 +496,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </table>
           </div>
         </div>
+      )}
+      {/* Tab 4: Live Firestore Database Inspector */}
+      {activeSubTab === 'live-db' && (
+        <LiveDatabaseInspector
+          students={students}
+          alumniList={alumniList}
+          opportunities={opportunities}
+          mentorshipRequests={mentorshipRequests}
+          pendingUpdates={pendingUpdates}
+          activityLog={activityLog}
+          lastSyncedAt={lastSyncedAt}
+          isRefreshing={isRefreshingDb}
+          onRefreshDatabase={onRefreshDatabase}
+          onClearActivityLog={onClearActivityLog}
+        />
       )}
     </div>
   );

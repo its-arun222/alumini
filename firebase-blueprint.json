@@ -1,0 +1,146 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "A MAIT CST student profile stored in Firestore.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "rollNo": { "type": "string", "maxLength": 40 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "branch": { "type": "string", "maxLength": 100 },
+        "batchYear": { "type": "string", "maxLength": 32 },
+        "currentSemester": { "type": "number" },
+        "cgpa": { "type": "number" },
+        "skills": { "type": "array" },
+        "interests": { "type": "array" },
+        "dreamCompanies": { "type": "array" },
+        "bio": { "type": "string", "maxLength": 1000 },
+        "avatarUrl": { "type": "string", "maxLength": 500 },
+        "githubUrl": { "type": "string", "maxLength": 300 },
+        "linkedinUrl": { "type": "string", "maxLength": 300 }
+      },
+      "required": ["id", "name", "rollNo", "email", "branch", "batchYear", "currentSemester", "cgpa", "skills", "interests", "dreamCompanies", "bio"]
+    },
+    "Alumni": {
+      "title": "Alumni",
+      "description": "A verified MAIT CST alumni profile.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "branch": { "type": "string", "maxLength": 100 },
+        "gradYear": { "type": "number" },
+        "currentCompany": { "type": "string", "maxLength": 120 },
+        "designation": { "type": "string", "maxLength": 120 },
+        "location": { "type": "string", "maxLength": 120 },
+        "skills": { "type": "array" },
+        "bio": { "type": "string", "maxLength": 1200 },
+        "avatarUrl": { "type": "string", "maxLength": 500 },
+        "linkedinUrl": { "type": "string", "maxLength": 300 },
+        "githubUrl": { "type": "string", "maxLength": 300 },
+        "isAvailableForMentoring": { "type": "boolean" },
+        "totalMentored": { "type": "number" },
+        "specialties": { "type": "array" },
+        "verifiedByMait": { "type": "boolean" }
+      },
+      "required": ["id", "name", "email", "branch", "gradYear", "currentCompany", "designation", "location", "skills", "bio", "isAvailableForMentoring", "totalMentored", "specialties", "verifiedByMait"]
+    },
+    "Opportunity": {
+      "title": "Opportunity",
+      "description": "A job referral, internship, webinar, or alumni reunion posting.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 5, "maxLength": 140 },
+        "type": { "type": "string", "enum": ["job", "internship", "webinar", "reunion"] },
+        "companyOrOrganizer": { "type": "string", "maxLength": 140 },
+        "location": { "type": "string", "maxLength": 140 },
+        "mode": { "type": "string", "enum": ["Remote", "Hybrid", "On-site"] },
+        "description": { "type": "string", "maxLength": 3000 },
+        "requirements": { "type": "array" },
+        "skills": { "type": "array" },
+        "deadlineOrDate": { "type": "string", "maxLength": 40 },
+        "postedByRole": { "type": "string", "enum": ["student", "alumni", "admin"] },
+        "posterId": { "type": "string", "maxLength": 128 },
+        "posterName": { "type": "string", "maxLength": 120 },
+        "posterCompany": { "type": "string", "maxLength": 140 },
+        "posterGradYear": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "registeredStudentIds": { "type": "array" },
+        "compensationOrFee": { "type": "string", "maxLength": 120 },
+        "linkUrl": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "isReferralByAlumni": { "type": "boolean" }
+      },
+      "required": ["id", "title", "type", "companyOrOrganizer", "location", "mode", "description", "requirements", "skills", "deadlineOrDate", "postedByRole", "posterId", "posterName", "status", "registeredStudentIds", "createdAt"]
+    },
+    "MentorshipRequest": {
+      "title": "MentorshipRequest",
+      "description": "A 1:1 mentorship request from a MAIT CST student to an alumnus.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentId": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 100 },
+        "studentBranch": { "type": "string", "maxLength": 100 },
+        "studentSemester": { "type": "number" },
+        "studentCgpa": { "type": "number" },
+        "alumniId": { "type": "string", "maxLength": 128 },
+        "alumniName": { "type": "string", "maxLength": 100 },
+        "alumniCompany": { "type": "string", "maxLength": 120 },
+        "alumniDesignation": { "type": "string", "maxLength": 120 },
+        "topic": { "type": "string", "maxLength": 120 },
+        "message": { "type": "string", "maxLength": 1200 },
+        "preferredMode": { "type": "string", "enum": ["Google Meet", "LinkedIn Voice/Chat", "In-person @ MAIT"] },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "requestedAt": { "type": "string", "maxLength": 64 },
+        "responseNote": { "type": "string", "maxLength": 1000 },
+        "meetingUrl": { "type": "string", "maxLength": 400 }
+      },
+      "required": ["id", "studentId", "studentName", "studentBranch", "studentSemester", "studentCgpa", "alumniId", "alumniName", "alumniCompany", "alumniDesignation", "topic", "message", "preferredMode", "status", "requestedAt"]
+    },
+    "PendingProfileUpdate": {
+      "title": "PendingProfileUpdate",
+      "description": "An alumni profile modification awaiting MAIT CST Admin moderation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "alumniId": { "type": "string", "maxLength": 128 },
+        "alumniName": { "type": "string", "maxLength": 100 },
+        "gradYear": { "type": "number" },
+        "currentCompany": { "type": "string", "maxLength": 120 },
+        "requestedChanges": { "type": "object" },
+        "reason": { "type": "string", "maxLength": 600 },
+        "submittedAt": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "adminRemark": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "alumniId", "alumniName", "gradYear", "currentCompany", "requestedChanges", "reason", "submittedAt", "status"]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": { "$ref": "#/entities/Student" },
+      "description": "MAIT CST student profiles."
+    },
+    "/alumni/{alumniId}": {
+      "schema": { "$ref": "#/entities/Alumni" },
+      "description": "MAIT CST alumni directory profiles."
+    },
+    "/opportunities/{opportunityId}": {
+      "schema": { "$ref": "#/entities/Opportunity" },
+      "description": "Opportunities and community events feed with moderation status."
+    },
+    "/mentorship_requests/{requestId}": {
+      "schema": { "$ref": "#/entities/MentorshipRequest" },
+      "description": "Student-to-alumni 1:1 mentorship requests and responses."
+    },
+    "/pending_profile_updates/{updateId}": {
+      "schema": { "$ref": "#/entities/PendingProfileUpdate" },
+      "description": "Alumni profile update requests awaiting admin approval."
+    }
+  }
+}

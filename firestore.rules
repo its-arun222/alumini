@@ -1,0 +1,287 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable validation primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isStringBounded(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isOptionalStringBounded(data, field, maxLen) {
+      return !(field in data) || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isStringListBounded(val, maxItems) {
+      return val is list && val.size() <= maxItems && (val.size() == 0 || val[0] is string);
+    }
+
+    function isValidStudent(data) {
+      return data.keys().hasAll([
+          'id', 'name', 'rollNo', 'email', 'branch', 'batchYear',
+          'currentSemester', 'cgpa', 'skills', 'interests', 'dreamCompanies', 'bio'
+        ])
+        && data.keys().hasOnly([
+          'id', 'name', 'rollNo', 'email', 'branch', 'batchYear',
+          'currentSemester', 'cgpa', 'skills', 'interests', 'dreamCompanies', 'bio',
+          'avatarUrl', 'githubUrl', 'linkedinUrl'
+        ])
+        && isValidId(data.id)
+        && isStringBounded(data.name, 2, 80)
+        && isStringBounded(data.rollNo, 1, 40)
+        && isStringBounded(data.email, 3, 160)
+        && isStringBounded(data.branch, 2, 100)
+        && isStringBounded(data.batchYear, 4, 32)
+        && data.currentSemester is number && data.currentSemester >= 1 && data.currentSemester <= 8
+        && data.cgpa is number && data.cgpa >= 0 && data.cgpa <= 10
+        && isStringListBounded(data.skills, 30)
+        && isStringListBounded(data.interests, 30)
+        && isStringListBounded(data.dreamCompanies, 30)
+        && isStringBounded(data.bio, 1, 1000)
+        && isOptionalStringBounded(data, 'avatarUrl', 500)
+        && isOptionalStringBounded(data, 'githubUrl', 300)
+        && isOptionalStringBounded(data, 'linkedinUrl', 300);
+    }
+
+    function isValidAlumni(data) {
+      return data.keys().hasAll([
+          'id', 'name', 'email', 'branch', 'gradYear', 'currentCompany',
+          'designation', 'location', 'skills', 'bio',
+          'isAvailableForMentoring', 'totalMentored', 'specialties', 'verifiedByMait'
+        ])
+        && data.keys().hasOnly([
+          'id', 'name', 'email', 'branch', 'gradYear', 'currentCompany',
+          'designation', 'location', 'skills', 'bio', 'avatarUrl',
+          'linkedinUrl', 'githubUrl', 'isAvailableForMentoring',
+          'totalMentored', 'specialties', 'verifiedByMait'
+        ])
+        && isValidId(data.id)
+        && isStringBounded(data.name, 2, 100)
+        && isStringBounded(data.email, 3, 160)
+        && isStringBounded(data.branch, 2, 100)
+        && data.gradYear is number && data.gradYear >= 1995 && data.gradYear <= 2035
+        && isStringBounded(data.currentCompany, 1, 120)
+        && isStringBounded(data.designation, 1, 120)
+        && isStringBounded(data.location, 1, 120)
+        && isStringListBounded(data.skills, 30)
+        && isStringBounded(data.bio, 1, 1200)
+        && isOptionalStringBounded(data, 'avatarUrl', 500)
+        && isOptionalStringBounded(data, 'linkedinUrl', 300)
+        && isOptionalStringBounded(data, 'githubUrl', 300)
+        && data.isAvailableForMentoring is bool
+        && data.totalMentored is number && data.totalMentored >= 0 && data.totalMentored <= 10000
+        && isStringListBounded(data.specialties, 20)
+        && data.verifiedByMait is bool;
+    }
+
+    function isValidOpportunity(data) {
+      return data.keys().hasAll([
+          'id', 'title', 'type', 'companyOrOrganizer', 'location', 'mode',
+          'description', 'requirements', 'skills', 'deadlineOrDate',
+          'postedByRole', 'posterId', 'posterName', 'status',
+          'registeredStudentIds', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'title', 'type', 'companyOrOrganizer', 'location', 'mode',
+          'description', 'requirements', 'skills', 'deadlineOrDate',
+          'postedByRole', 'posterId', 'posterName', 'posterCompany',
+          'posterGradYear', 'status', 'registeredStudentIds',
+          'compensationOrFee', 'linkUrl', 'createdAt', 'isReferralByAlumni'
+        ])
+        && isValidId(data.id)
+        && isStringBounded(data.title, 5, 140)
+        && data.type in ['job', 'internship', 'webinar', 'reunion']
+        && isStringBounded(data.companyOrOrganizer, 2, 140)
+        && isStringBounded(data.location, 2, 140)
+        && data.mode in ['Remote', 'Hybrid', 'On-site']
+        && isStringBounded(data.description, 10, 3000)
+        && isStringListBounded(data.requirements, 30)
+        && isStringListBounded(data.skills, 30)
+        && isStringBounded(data.deadlineOrDate, 4, 40)
+        && data.postedByRole in ['alumni', 'admin']
+        && isStringBounded(data.posterId, 1, 128)
+        && isStringBounded(data.posterName, 2, 120)
+        && isOptionalStringBounded(data, 'posterCompany', 140)
+        && (!('posterGradYear' in data) || (data.posterGradYear is number && data.posterGradYear >= 1995 && data.posterGradYear <= 2035))
+        && data.status in ['pending', 'approved', 'rejected']
+        && isStringListBounded(data.registeredStudentIds, 500)
+        && isOptionalStringBounded(data, 'compensationOrFee', 120)
+        && isOptionalStringBounded(data, 'linkUrl', 400)
+        && isStringBounded(data.createdAt, 4, 64)
+        && (!('isReferralByAlumni' in data) || data.isReferralByAlumni is bool);
+    }
+
+    function isValidMentorshipRequest(data) {
+      return data.keys().hasAll([
+          'id', 'studentId', 'studentName', 'studentBranch', 'studentSemester',
+          'studentCgpa', 'alumniId', 'alumniName', 'alumniCompany',
+          'alumniDesignation', 'topic', 'message', 'preferredMode',
+          'status', 'requestedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'studentId', 'studentName', 'studentBranch', 'studentSemester',
+          'studentCgpa', 'alumniId', 'alumniName', 'alumniCompany',
+          'alumniDesignation', 'topic', 'message', 'preferredMode',
+          'status', 'requestedAt', 'responseNote', 'meetingUrl'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.studentId)
+        && isStringBounded(data.studentName, 2, 100)
+        && isStringBounded(data.studentBranch, 2, 100)
+        && data.studentSemester is number && data.studentSemester >= 1 && data.studentSemester <= 8
+        && data.studentCgpa is number && data.studentCgpa >= 0 && data.studentCgpa <= 10
+        && isValidId(data.alumniId)
+        && isStringBounded(data.alumniName, 2, 100)
+        && isStringBounded(data.alumniCompany, 1, 120)
+        && isStringBounded(data.alumniDesignation, 1, 120)
+        && isStringBounded(data.topic, 3, 120)
+        && isStringBounded(data.message, 10, 1200)
+        && data.preferredMode in ['Google Meet', 'LinkedIn Voice/Chat', 'In-person @ MAIT']
+        && data.status in ['pending', 'accepted', 'declined']
+        && isStringBounded(data.requestedAt, 4, 64)
+        && isOptionalStringBounded(data, 'responseNote', 1000)
+        && isOptionalStringBounded(data, 'meetingUrl', 400);
+    }
+
+    function isValidPendingProfileUpdate(data) {
+      return data.keys().hasAll([
+          'id', 'alumniId', 'alumniName', 'gradYear', 'currentCompany',
+          'requestedChanges', 'reason', 'submittedAt', 'status'
+        ])
+        && data.keys().hasOnly([
+          'id', 'alumniId', 'alumniName', 'gradYear', 'currentCompany',
+          'requestedChanges', 'reason', 'submittedAt', 'status', 'adminRemark'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.alumniId)
+        && isStringBounded(data.alumniName, 2, 100)
+        && data.gradYear is number && data.gradYear >= 1995 && data.gradYear <= 2035
+        && isStringBounded(data.currentCompany, 1, 120)
+        && data.requestedChanges is map
+        && data.requestedChanges.keys().hasOnly(['company', 'designation', 'location', 'skills', 'bio'])
+        && isStringBounded(data.reason, 5, 600)
+        && isStringBounded(data.submittedAt, 4, 64)
+        && data.status in ['pending', 'approved', 'rejected']
+        && isOptionalStringBounded(data, 'adminRemark', 500);
+    }
+
+    // 1. Students collection
+    match /students/{studentId} {
+      allow get: if isValidId(studentId);
+      allow list: if request.query.limit <= 200;
+      allow create: if isValidId(studentId)
+        && incoming().id == studentId
+        && isValidStudent(incoming());
+      allow update: if isValidId(studentId)
+        && isValidStudent(incoming())
+        && incoming().id == existing().id
+        && incoming().rollNo == existing().rollNo
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'currentSemester', 'cgpa', 'skills', 'interests',
+          'dreamCompanies', 'bio', 'githubUrl', 'linkedinUrl'
+        ]);
+      allow delete: if false;
+    }
+
+    // 2. Alumni collection
+    match /alumni/{alumniId} {
+      allow get: if isValidId(alumniId);
+      allow list: if request.query.limit <= 200;
+      allow create: if isValidId(alumniId)
+        && incoming().id == alumniId
+        && isValidAlumni(incoming());
+      allow update: if isValidId(alumniId)
+        && isValidAlumni(incoming())
+        && incoming().id == existing().id
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['isAvailableForMentoring'])
+          || incoming().diff(existing()).affectedKeys().hasOnly([
+            'currentCompany', 'designation', 'location', 'bio', 'skills'
+          ])
+        );
+      allow delete: if false;
+    }
+
+    // 3. Opportunities collection
+    match /opportunities/{opportunityId} {
+      allow get: if isValidId(opportunityId);
+      allow list: if request.query.limit <= 200;
+      allow create: if isValidId(opportunityId)
+        && incoming().id == opportunityId
+        && isValidOpportunity(incoming())
+        && (
+          (incoming().postedByRole == 'alumni' && incoming().status == 'pending')
+          || (incoming().postedByRole == 'admin' && incoming().status == 'approved')
+        );
+      allow update: if isValidId(opportunityId)
+        && isValidOpportunity(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().posterId == existing().posterId
+        && (
+          // Student registration toggle on approved opportunities only
+          (existing().status == 'approved'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['registeredStudentIds']))
+          // Admin moderation approval/rejection on pending opportunities
+          || (existing().status == 'pending'
+            && incoming().status in ['approved', 'rejected']
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status']))
+        );
+      allow delete: if false;
+    }
+
+    // 4. Mentorship Requests collection
+    match /mentorship_requests/{requestId} {
+      allow get: if isValidId(requestId);
+      allow list: if request.query.limit <= 200;
+      allow create: if isValidId(requestId)
+        && incoming().id == requestId
+        && isValidMentorshipRequest(incoming())
+        && incoming().status == 'pending';
+      allow update: if isValidId(requestId)
+        && isValidMentorshipRequest(incoming())
+        && incoming().id == existing().id
+        && incoming().studentId == existing().studentId
+        && incoming().alumniId == existing().alumniId
+        && incoming().requestedAt == existing().requestedAt
+        && existing().status == 'pending'
+        && incoming().status in ['accepted', 'declined']
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'responseNote', 'meetingUrl']);
+      allow delete: if false;
+    }
+
+    // 5. Pending Profile Updates collection
+    match /pending_profile_updates/{updateId} {
+      allow get: if isValidId(updateId);
+      allow list: if request.query.limit <= 200;
+      allow create: if isValidId(updateId)
+        && incoming().id == updateId
+        && isValidPendingProfileUpdate(incoming())
+        && incoming().status == 'pending';
+      allow update: if isValidId(updateId)
+        && isValidPendingProfileUpdate(incoming())
+        && incoming().id == existing().id
+        && incoming().alumniId == existing().alumniId
+        && incoming().submittedAt == existing().submittedAt
+        && existing().status == 'pending'
+        && incoming().status in ['approved', 'rejected']
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'adminRemark']);
+      allow delete: if false;
+    }
+  }
+}

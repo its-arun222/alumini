@@ -1,15 +1,12 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
-import { registerDbRoutes } from './db';
 
 dotenv.config();
 
 const app = express();
 
 app.use(express.json({ limit: '10mb' }));
-
-registerDbRoutes(app);
 
 function generateMaitFallbackGuidance(profile: any, question: string): string {
   const name = profile?.name || 'Aarav';
