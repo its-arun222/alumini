@@ -1,7 +1,73 @@
 import { z } from 'zod';
-import { AlumniProfile, Opportunity, MentorshipRequest, PendingProfileUpdate, OpportunityType, MentorshipTopic, UserRole } from '../types';
+import {
+  AlumniProfile,
+  Opportunity,
+  MentorshipRequest,
+  PendingProfileUpdate,
+  OpportunityType,
+  MentorshipTopic,
+  UserRole,
+  ModerationStatus,
+} from '../types';
+
+// Role-Based Access Control (RBAC) Permission Matrix
+export function canPostOpportunity(role: UserRole): boolean {
+  return role === 'alumni' || role === 'admin';
+}
+
+export function canRegisterForOpportunity(role: UserRole): boolean {
+  return role === 'student';
+}
+
+export function canRequestMentorship(role: UserRole): boolean {
+  return role === 'student';
+}
+
+export function canRespondToMentorship(role: UserRole): boolean {
+  return role === 'alumni';
+}
+
+export function canAccessAdminModeration(role: UserRole): boolean {
+  return role === 'admin';
+}
+
+export function canUseAiCareerGuidance(role: UserRole): boolean {
+  return role === 'student';
+}
+
+export function canEditStudentProfile(role: UserRole): boolean {
+  return role === 'student';
+}
+
+export function canRequestAlumniProfileUpdate(role: UserRole): boolean {
+  return role === 'alumni';
+}
+
+export function getOpportunityStatusForRole(role: UserRole): ModerationStatus {
+  return role === 'admin' ? 'approved' : 'pending';
+}
+
+export function canAccessTab(role: UserRole, tab: string): boolean {
+  if (tab === 'admin-moderation') return canAccessAdminModeration(role);
+  if (tab === 'ai-guidance') return canUseAiCareerGuidance(role);
+  return ['dashboard', 'directory', 'opportunities', 'mentorship'].includes(tab);
+}
 
 // Zod Schemas
+export const studentProfileUpdateSchema = z.object({
+  name: z.string().min(2, 'Full name must be at least 2 characters.').max(80),
+  currentSemester: z.number().int().min(1, 'Semester must be between 1 and 8.').max(8, 'Semester must be between 1 and 8.'),
+  cgpa: z.number().min(0, 'CGPA must be between 0 and 10.').max(10, 'CGPA must be between 0 and 10.'),
+  skillsText: z.string().min(2, 'Add at least one technical skill (comma-separated).'),
+  interestsText: z.string().optional(),
+  dreamCompaniesText: z.string().optional(),
+  bio: z.string().min(15, 'Bio must be at least 15 characters.').max(500),
+  githubUrl: z.string().url('GitHub URL must start with https://').optional().or(z.literal('')),
+  linkedinUrl: z.string().url('LinkedIn URL must start with https://').optional().or(z.literal('')),
+});
+
+export type StudentProfileUpdateFormData = z.infer<typeof studentProfileUpdateSchema>;
+
 export const mentorshipRequestSchema = z.object({
   topic: z.enum([
     'Resume & Portfolio Review',

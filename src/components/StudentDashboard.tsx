@@ -12,7 +12,8 @@ import {
   Briefcase, 
   ExternalLink,
   Users,
-  Compass
+  Compass,
+  Edit3
 } from 'lucide-react';
 
 interface StudentDashboardProps {
@@ -22,6 +23,7 @@ interface StudentDashboardProps {
   alumniList: AlumniProfile[];
   onNavigateTab: (tab: string) => void;
   onRequestMentorship: (alumni: AlumniProfile) => void;
+  onOpenEditProfileModal: () => void;
 }
 
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
@@ -31,12 +33,13 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   alumniList,
   onNavigateTab,
   onRequestMentorship,
+  onOpenEditProfileModal,
 }) => {
   const myRequests = mentorshipRequests.filter((r) => r.studentId === student.id);
   const acceptedRequests = myRequests.filter((r) => r.status === 'accepted');
   const pendingRequests = myRequests.filter((r) => r.status === 'pending');
-  const myRegisteredOpps = opportunities.filter((o) =>
-    o.registeredStudentIds.includes(student.id)
+  const myRegisteredOpps = opportunities.filter(
+    (o) => o.status === 'approved' && o.registeredStudentIds.includes(student.id)
   );
 
   // Top recommended alumni mentors
@@ -65,10 +68,10 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 Welcome back, {student.name}
               </h1>
               <p className="text-sm text-slate-600 max-w-2xl mt-1 leading-relaxed">
-                {student.branch} · Batch {student.batchYear} · Targeting software engineering and systems roles.
+                {student.bio || `${student.branch} · Batch ${student.batchYear}`}
               </p>
               <div className="flex flex-wrap gap-1.5 mt-3">
-                {student.skills.slice(0, 5).map((skill) => (
+                {student.skills.slice(0, 6).map((skill) => (
                   <span
                     key={skill}
                     className="px-2.5 py-0.5 rounded-md text-xs bg-slate-100 text-slate-700 border border-slate-200"
@@ -81,6 +84,13 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2.5 shrink-0">
+            <button
+              onClick={onOpenEditProfileModal}
+              className="px-4 py-2.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs sm:text-sm flex items-center justify-center gap-2 border border-slate-300 transition-colors cursor-pointer"
+            >
+              <Edit3 className="w-4 h-4 text-slate-500" />
+              <span>Edit Profile</span>
+            </button>
             <button
               onClick={() => onNavigateTab('ai-guidance')}
               className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs sm:text-sm flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"

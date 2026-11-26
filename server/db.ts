@@ -68,7 +68,7 @@ export function registerDbRoutes(app: Express) {
     const collection = req.params.collection as Collection;
     const table = TABLES[collection];
     const rows = req.body?.rows;
-    if (!table || collection === 'students') return res.status(404).json({ error: 'Unknown collection' });
+    if (!table) return res.status(404).json({ error: 'Unknown collection' });
     if (!Array.isArray(rows) || rows.length === 0 || rows.length > 50 || rows.some((r) => !r || typeof r.id !== 'string')) {
       return res.status(400).json({ error: 'rows must be a non-empty array (max 50) of objects with string id' });
     }

@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { OpportunityType, UserRole, AlumniProfile, Opportunity } from '../types';
-import { opportunityPostingSchema } from '../utils/alumni-ecosystem';
+import {
+  opportunityPostingSchema,
+  canPostOpportunity,
+  getOpportunityStatusForRole,
+} from '../utils/alumni-ecosystem';
 import { X, Briefcase, Plus } from 'lucide-react';
 
 interface PostOpportunityModalProps {
@@ -18,8 +22,6 @@ export const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({
   alumni,
   onPostSuccess,
 }) => {
-  if (!isOpen) return null;
-
   const [type, setType] = useState<OpportunityType>('job');
   const [title, setTitle] = useState('');
   const [companyOrOrganizer, setCompanyOrOrganizer] = useState(
@@ -39,8 +41,11 @@ export const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({
   const [linkUrl, setLinkUrl] = useState('https://careers.google.com');
   const [error, setError] = useState<string | null>(null);
 
+  if (!isOpen || !canPostOpportunity(currentRole)) return null;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canPostOpportunity(currentRole)) return;
     setError(null);
 
     const validation = opportunityPostingSchema.safeParse({
@@ -72,8 +77,6 @@ export const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const isAutoApproved = currentRole === 'admin';
-
     const newOpp: Opportunity = {
       id: `opp-${Date.now()}`,
       title: title.trim(),
@@ -90,7 +93,7 @@ export const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({
       posterName: currentRole === 'alumni' && alumni ? alumni.name : 'Prof. Dr. S.K. Mittal',
       posterCompany: currentRole === 'alumni' && alumni ? alumni.currentCompany : 'MAIT CST Placement Cell',
       posterGradYear: currentRole === 'alumni' && alumni ? alumni.gradYear : undefined,
-      status: isAutoApproved ? 'approved' : 'pending',
+      status: getOpportunityStatusForRole(currentRole),
       registeredStudentIds: [],
       compensationOrFee: compensationOrFee ? compensationOrFee.trim() : undefined,
       linkUrl: linkUrl ? linkUrl.trim() : undefined,
@@ -99,6 +102,7 @@ export const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({
     };
 
     onPostSuccess(newOpp);
+    setTitle('');
     onClose();
   };
 
@@ -110,6 +114,7 @@ export const PostOpportunityModal: React.FC<PostOpportunityModalProps> = ({
       >
         <button
           onClick={onClose}
+          aria-label="Close post opportunity modal"
           className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />

@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { AlumniProfile, StudentProfile, MentorshipTopic } from '../types';
-import { mentorshipRequestSchema } from '../utils/alumni-ecosystem';
+import React, { useEffect, useState } from 'react';
+import { AlumniProfile, StudentProfile, MentorshipTopic, UserRole } from '../types';
+import { mentorshipRequestSchema, canRequestMentorship } from '../utils/alumni-ecosystem';
 import { UserAvatar } from './UserAvatar';
 import { X, Send, MessageSquare } from 'lucide-react';
 
 interface MentorshipRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
+  currentRole: UserRole;
   student: StudentProfile;
   alumniList: AlumniProfile[];
   initialAlumni?: AlumniProfile | null;
@@ -38,13 +39,12 @@ const TOPICS: MentorshipTopic[] = [
 export const MentorshipRequestModal: React.FC<MentorshipRequestModalProps> = ({
   isOpen,
   onClose,
+  currentRole,
   student,
   alumniList,
   initialAlumni,
   onSubmitRequest,
 }) => {
-  if (!isOpen) return null;
-
   const availableAlumni = alumniList.filter((a) => a.isAvailableForMentoring);
   const [selectedAlumniId, setSelectedAlumniId] = useState<string>(
     initialAlumni?.id || availableAlumni[0]?.id || ''
@@ -56,10 +56,20 @@ export const MentorshipRequestModal: React.FC<MentorshipRequestModalProps> = ({
   );
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedAlumniId(initialAlumni?.id || availableAlumni[0]?.id || '');
+      setError(null);
+    }
+  }, [isOpen, initialAlumni]);
+
+  if (!isOpen || !canRequestMentorship(currentRole)) return null;
+
   const selectedAlumni = alumniList.find((a) => a.id === selectedAlumniId) || initialAlumni || availableAlumni[0];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canRequestMentorship(currentRole)) return;
     setError(null);
 
     const validation = mentorshipRequestSchema.safeParse({

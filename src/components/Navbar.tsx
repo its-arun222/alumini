@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserRole, StudentProfile, AlumniProfile } from '../types';
+import { canAccessAdminModeration, canUseAiCareerGuidance } from '../utils/alumni-ecosystem';
 import { UserAvatar } from './UserAvatar';
 import { 
   GraduationCap, 
@@ -130,35 +131,39 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Mentorship</span>
             </button>
 
-            <button
-              onClick={() => setActiveTab('ai-guidance')}
-              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'ai-guidance'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>AI Advisor</span>
-            </button>
+            {canUseAiCareerGuidance(currentRole) && (
+              <button
+                onClick={() => setActiveTab('ai-guidance')}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'ai-guidance'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>AI Advisor</span>
+              </button>
+            )}
 
-            {/* Admin Moderation Tab */}
-            <button
-              onClick={() => setActiveTab('admin-moderation')}
-              className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 relative cursor-pointer ${
-                activeTab === 'admin-moderation'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Moderation</span>
-              {pendingModerationCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                  {pendingModerationCount}
-                </span>
-              )}
-            </button>
+            {/* Admin Moderation Tab (Admin only) */}
+            {canAccessAdminModeration(currentRole) && (
+              <button
+                onClick={() => setActiveTab('admin-moderation')}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 relative cursor-pointer ${
+                  activeTab === 'admin-moderation'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Moderation</span>
+                {pendingModerationCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                    {pendingModerationCount}
+                  </span>
+                )}
+              </button>
+            )}
           </nav>
 
           {/* User Persona & Role Switcher + Logout */}
@@ -189,7 +194,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
                 <p className="text-[10px] text-slate-500 truncate max-w-[120px]">
                   {currentRole === 'student'
-                    ? 'CST Sem 6'
+                    ? `CST Sem ${student.currentSemester}`
                     : currentRole === 'alumni'
                     ? `${alumni.currentCompany}`
                     : 'Faculty Admin'}
@@ -247,22 +252,26 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             Mentorship
           </button>
-          <button
-            onClick={() => setActiveTab('ai-guidance')}
-            className={`px-2.5 py-1.5 rounded-lg font-medium whitespace-nowrap ${
-              activeTab === 'ai-guidance' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600'
-            }`}
-          >
-            AI Advisor
-          </button>
-          <button
-            onClick={() => setActiveTab('admin-moderation')}
-            className={`px-2.5 py-1.5 rounded-lg font-medium whitespace-nowrap ${
-              activeTab === 'admin-moderation' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600'
-            }`}
-          >
-            Moderation ({pendingModerationCount})
-          </button>
+          {canUseAiCareerGuidance(currentRole) && (
+            <button
+              onClick={() => setActiveTab('ai-guidance')}
+              className={`px-2.5 py-1.5 rounded-lg font-medium whitespace-nowrap ${
+                activeTab === 'ai-guidance' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600'
+              }`}
+            >
+              AI Advisor
+            </button>
+          )}
+          {canAccessAdminModeration(currentRole) && (
+            <button
+              onClick={() => setActiveTab('admin-moderation')}
+              className={`px-2.5 py-1.5 rounded-lg font-medium whitespace-nowrap ${
+                activeTab === 'admin-moderation' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-600'
+              }`}
+            >
+              Moderation ({pendingModerationCount})
+            </button>
+          )}
         </div>
       </div>
     </header>

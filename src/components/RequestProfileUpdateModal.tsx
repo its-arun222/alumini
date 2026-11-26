@@ -16,8 +16,6 @@ export const RequestProfileUpdateModal: React.FC<RequestProfileUpdateModalProps>
   alumni,
   onSubmitUpdate,
 }) => {
-  if (!isOpen) return null;
-
   const [company, setCompany] = useState(alumni.currentCompany);
   const [designation, setDesignation] = useState(alumni.designation);
   const [location, setLocation] = useState(alumni.location);
@@ -25,6 +23,8 @@ export const RequestProfileUpdateModal: React.FC<RequestProfileUpdateModalProps>
   const [bio, setBio] = useState(alumni.bio);
   const [reason, setReason] = useState('Recent promotion / role transition');
   const [error, setError] = useState<string | null>(null);
+
+  if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

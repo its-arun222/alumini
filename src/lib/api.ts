@@ -8,7 +8,7 @@ export interface AppState {
   pendingUpdates: PendingProfileUpdate[];
 }
 
-export type Collection = 'alumni' | 'opportunities' | 'mentorshipRequests' | 'pendingUpdates';
+export type Collection = 'students' | 'alumni' | 'opportunities' | 'mentorshipRequests' | 'pendingUpdates';
 
 /** Returns null when the DB is unavailable so the app can fall back to mock data. */
 export async function fetchState(): Promise<AppState | null> {

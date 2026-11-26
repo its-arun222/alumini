@@ -20,7 +20,17 @@ import {
   declineMentorshipRequest, 
   toggleOpportunityRegistration,
   moderateOpportunity,
-  moderateProfileUpdate
+  moderateProfileUpdate,
+  canPostOpportunity,
+  canRegisterForOpportunity,
+  canRequestMentorship,
+  canRespondToMentorship,
+  canAccessAdminModeration,
+  canUseAiCareerGuidance,
+  canEditStudentProfile,
+  canRequestAlumniProfileUpdate,
+  canAccessTab,
+  getOpportunityStatusForRole,
 } from './utils/alumni-ecosystem';
 
 import { fetchState, persistChanges } from './lib/api';
@@ -38,6 +48,7 @@ import { AiCareerGuidance } from './components/AiCareerGuidance';
 import { MentorshipRequestModal } from './components/MentorshipRequestModal';
 import { PostOpportunityModal } from './components/PostOpportunityModal';
 import { RequestProfileUpdateModal } from './components/RequestProfileUpdateModal';
+import { EditStudentProfileModal } from './components/EditStudentProfileModal';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
@@ -73,6 +84,7 @@ export default function App() {
   const [preselectedAlumni, setPreselectedAlumni] = useState<AlumniProfile | null>(null);
   const [isPostOpportunityModalOpen, setIsPostOpportunityModalOpen] = useState(false);
   const [isProfileUpdateModalOpen, setIsProfileUpdateModalOpen] = useState(false);
+  const [isStudentProfileModalOpen, setIsStudentProfileModalOpen] = useState(false);
 
   // Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -88,18 +100,37 @@ export default function App() {
     opportunities.filter((o) => o.status === 'pending').length +
     pendingUpdates.filter((u) => u.status === 'pending').length;
 
+  // Role-guarded navigation
+  const handleNavigateTab = (tab: string) => {
+    if (!canAccessTab(currentRole, tab)) {
+      setActiveTab('dashboard');
+      return;
+    }
+    setActiveTab(tab);
+  };
+
   // Handlers
   const handleSelectRole = (role: UserRole) => {
     setCurrentRole(role);
+    setIsMentorshipModalOpen(false);
+    setIsPostOpportunityModalOpen(false);
+    setIsProfileUpdateModalOpen(false);
+    setIsStudentProfileModalOpen(false);
+    setPreselectedAlumni(null);
+    if (!canAccessTab(role, activeTab)) {
+      setActiveTab('dashboard');
+    }
     showToast(`Switched portal persona to ${role.toUpperCase()}`);
   };
 
   const handleOpenMentorshipForAlumni = (alumniTarget?: AlumniProfile) => {
+    if (!canRequestMentorship(currentRole)) return;
     setPreselectedAlumni(alumniTarget || null);
     setIsMentorshipModalOpen(true);
   };
 
   const handleSubmitMentorshipRequest = (data: any) => {
+    if (!canRequestMentorship(currentRole)) return;
     const updated = createMentorshipRequest(mentorshipRequests, data);
     setMentorshipRequests(updated);
     persistChanges('mentorshipRequests', mentorshipRequests, updated);
@@ -107,6 +138,7 @@ export default function App() {
   };
 
   const handleAcceptMentorship = (requestId: string, note?: string, meetingUrl?: string) => {
+    if (!canRespondToMentorship(currentRole)) return;
     const updated = acceptMentorshipRequest(mentorshipRequests, requestId, note, meetingUrl);
     setMentorshipRequests(updated);
     persistChanges('mentorshipRequests', mentorshipRequests, updated);
@@ -114,6 +146,7 @@ export default function App() {
   };
 
   const handleDeclineMentorship = (requestId: string, note?: string) => {
+    if (!canRespondToMentorship(currentRole)) return;
     const updated = declineMentorshipRequest(mentorshipRequests, requestId, note);
     setMentorshipRequests(updated);
     persistChanges('mentorshipRequests', mentorshipRequests, updated);
@@ -121,8 +154,10 @@ export default function App() {
   };
 
   const handleToggleRegistration = (opportunityId: string) => {
+    if (!canRegisterForOpportunity(currentRole)) return;
     const opp = opportunities.find((o) => o.id === opportunityId);
-    const wasRegistered = opp?.registeredStudentIds.includes(student.id);
+    if (!opp || opp.status !== 'approved') return;
+    const wasRegistered = opp.registeredStudentIds.includes(student.id);
 
     const updated = toggleOpportunityRegistration(opportunities, opportunityId, student.id);
     setOpportunities(updated);
@@ -131,14 +166,25 @@ export default function App() {
     if (wasRegistered) {
       showToast('Registration cancelled.');
     } else {
-      showToast(`Successfully registered for ${opp?.title || 'opportunity'}! Added to your dashboard.`);
+      showToast(`Successfully registered for ${opp.title}! Added to your dashboard.`);
     }
   };
 
+  const handleOpenPostOpportunityModal = () => {
+    if (!canPostOpportunity(currentRole)) return;
+    setIsPostOpportunityModalOpen(true);
+  };
+
   const handlePostOpportunity = (newOpp: Opportunity) => {
-    setOpportunities((prev) => [newOpp, ...prev]);
-    persistChanges('opportunities', [], [newOpp]);
-    if (newOpp.status === 'approved') {
+    if (!canPostOpportunity(currentRole)) return;
+    const enforcedOpp: Opportunity = {
+      ...newOpp,
+      postedByRole: currentRole,
+      status: getOpportunityStatusForRole(currentRole),
+    };
+    setOpportunities((prev) => [enforcedOpp, ...prev]);
+    persistChanges('opportunities', [], [enforcedOpp]);
+    if (enforcedOpp.status === 'approved') {
       showToast('Opportunity published live to the feed!');
     } else {
       showToast('Opportunity submitted for Admin Moderation review.');
@@ -146,6 +192,7 @@ export default function App() {
   };
 
   const handleModerateOpportunity = (opportunityId: string, action: 'approved' | 'rejected') => {
+    if (!canAccessAdminModeration(currentRole)) return;
     const updated = moderateOpportunity(opportunities, opportunityId, action);
     setOpportunities(updated);
     persistChanges('opportunities', opportunities, updated);
@@ -157,6 +204,7 @@ export default function App() {
     action: 'approved' | 'rejected',
     remark?: string
   ) => {
+    if (!canAccessAdminModeration(currentRole)) return;
     const { updatedPendingUpdates, updatedAlumniList } = moderateProfileUpdate(
       pendingUpdates,
       alumniList,
@@ -172,11 +220,38 @@ export default function App() {
   };
 
   const handleToggleMentorshipAvailability = () => {
+    if (!canRequestAlumniProfileUpdate(currentRole)) return;
     const nextState = !activeAlumni.isAvailableForMentoring;
     const updated = { ...activeAlumni, isAvailableForMentoring: nextState };
     setAlumniList((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
     persistChanges('alumni', [activeAlumni], [updated]);
     showToast(`Mentoring status set to: ${nextState ? 'Open for 1:1 Mentoring' : 'Mentoring Paused'}`);
+  };
+
+  const handleOpenProfileUpdateModal = () => {
+    if (!canRequestAlumniProfileUpdate(currentRole)) return;
+    setIsProfileUpdateModalOpen(true);
+  };
+
+  const handleSubmitProfileUpdate = (newUpdate: PendingProfileUpdate) => {
+    if (!canRequestAlumniProfileUpdate(currentRole)) return;
+    const enforcedUpdate: PendingProfileUpdate = { ...newUpdate, status: 'pending' };
+    setPendingUpdates((prev) => [enforcedUpdate, ...prev]);
+    persistChanges('pendingUpdates', [], [enforcedUpdate]);
+    showToast('Profile update submitted to MAIT CST Admin for review!');
+  };
+
+  const handleOpenStudentProfileModal = () => {
+    if (!canEditStudentProfile(currentRole)) return;
+    setIsStudentProfileModalOpen(true);
+  };
+
+  const handleUpdateStudentProfile = (updatedStudent: StudentProfile) => {
+    if (!canEditStudentProfile(currentRole)) return;
+    const prevStudent = student;
+    setStudent(updatedStudent);
+    persistChanges('students', [prevStudent], [updatedStudent]);
+    showToast('Student profile updated successfully!');
   };
 
   // If user is not yet logged in, show the institutional password authentication page
@@ -200,7 +275,7 @@ export default function App() {
         currentRole={currentRole}
         onSelectRole={handleSelectRole}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleNavigateTab}
         student={student}
         alumni={activeAlumni}
         pendingModerationCount={pendingModerationCount}
@@ -232,8 +307,9 @@ export default function App() {
                 mentorshipRequests={mentorshipRequests}
                 opportunities={opportunities}
                 alumniList={alumniList}
-                onNavigateTab={setActiveTab}
+                onNavigateTab={handleNavigateTab}
                 onRequestMentorship={handleOpenMentorshipForAlumni}
+                onOpenEditProfileModal={handleOpenStudentProfileModal}
               />
             )}
 
@@ -244,10 +320,10 @@ export default function App() {
                 opportunities={opportunities}
                 onAcceptRequest={handleAcceptMentorship}
                 onDeclineRequest={handleDeclineMentorship}
-                onOpenPostModal={() => setIsPostOpportunityModalOpen(true)}
-                onOpenProfileUpdateModal={() => setIsProfileUpdateModalOpen(true)}
+                onOpenPostModal={handleOpenPostOpportunityModal}
+                onOpenProfileUpdateModal={handleOpenProfileUpdateModal}
                 onToggleMentorshipAvailability={handleToggleMentorshipAvailability}
-                onNavigateTab={setActiveTab}
+                onNavigateTab={handleNavigateTab}
               />
             )}
 
@@ -259,7 +335,7 @@ export default function App() {
                 mentorshipRequests={mentorshipRequests}
                 onModerateOpportunity={handleModerateOpportunity}
                 onModerateProfileUpdate={handleModerateProfileUpdate}
-                onNavigateTab={setActiveTab}
+                onNavigateTab={handleNavigateTab}
               />
             )}
           </>
@@ -281,7 +357,7 @@ export default function App() {
             currentRole={currentRole}
             student={student}
             onToggleRegistration={handleToggleRegistration}
-            onOpenPostModal={() => setIsPostOpportunityModalOpen(true)}
+            onOpenPostModal={handleOpenPostOpportunityModal}
           />
         )}
 
@@ -299,8 +375,8 @@ export default function App() {
           />
         )}
 
-        {/* View 5: Stateless AI Career Guidance Chatbot */}
-        {activeTab === 'ai-guidance' && (
+        {/* View 5: Stateless AI Career Guidance Chatbot (Student only) */}
+        {activeTab === 'ai-guidance' && canUseAiCareerGuidance(currentRole) && (
           <AiCareerGuidance
             student={student}
             alumniList={alumniList}
@@ -308,8 +384,8 @@ export default function App() {
           />
         )}
 
-        {/* View 6: Dedicated Admin Moderation Console */}
-        {activeTab === 'admin-moderation' && (
+        {/* View 6: Dedicated Admin Moderation Console (Admin only) */}
+        {activeTab === 'admin-moderation' && canAccessAdminModeration(currentRole) && (
           <AdminDashboard
             opportunities={opportunities}
             pendingUpdates={pendingUpdates}
@@ -317,7 +393,7 @@ export default function App() {
             mentorshipRequests={mentorshipRequests}
             onModerateOpportunity={handleModerateOpportunity}
             onModerateProfileUpdate={handleModerateProfileUpdate}
-            onNavigateTab={setActiveTab}
+            onNavigateTab={handleNavigateTab}
           />
         )}
       </main>
@@ -334,39 +410,53 @@ export default function App() {
         onSelectAlumniId={setSelectedAlumniId}
       />
 
-      {/* Mentorship Request Modal */}
-      <MentorshipRequestModal
-        isOpen={isMentorshipModalOpen}
-        onClose={() => {
-          setIsMentorshipModalOpen(false);
-          setPreselectedAlumni(null);
-        }}
-        student={student}
-        alumniList={alumniList}
-        initialAlumni={preselectedAlumni}
-        onSubmitRequest={handleSubmitMentorshipRequest}
-      />
+      {/* Mentorship Request Modal (Student only) */}
+      {canRequestMentorship(currentRole) && (
+        <MentorshipRequestModal
+          isOpen={isMentorshipModalOpen}
+          onClose={() => {
+            setIsMentorshipModalOpen(false);
+            setPreselectedAlumni(null);
+          }}
+          currentRole={currentRole}
+          student={student}
+          alumniList={alumniList}
+          initialAlumni={preselectedAlumni}
+          onSubmitRequest={handleSubmitMentorshipRequest}
+        />
+      )}
 
-      {/* Post Opportunity Modal */}
-      <PostOpportunityModal
-        isOpen={isPostOpportunityModalOpen}
-        onClose={() => setIsPostOpportunityModalOpen(false)}
-        currentRole={currentRole}
-        alumni={activeAlumni}
-        onPostSuccess={handlePostOpportunity}
-      />
+      {/* Post Opportunity Modal (Alumni & Admin only) */}
+      {canPostOpportunity(currentRole) && (
+        <PostOpportunityModal
+          key={`${currentRole}-${activeAlumni.id}`}
+          isOpen={isPostOpportunityModalOpen}
+          onClose={() => setIsPostOpportunityModalOpen(false)}
+          currentRole={currentRole}
+          alumni={activeAlumni}
+          onPostSuccess={handlePostOpportunity}
+        />
+      )}
 
-      {/* Request Profile Update Modal */}
-      <RequestProfileUpdateModal
-        isOpen={isProfileUpdateModalOpen}
-        onClose={() => setIsProfileUpdateModalOpen(false)}
-        alumni={activeAlumni}
-        onSubmitUpdate={(newUpdate) => {
-          setPendingUpdates((prev) => [newUpdate, ...prev]);
-          persistChanges('pendingUpdates', [], [newUpdate]);
-          showToast('Profile update submitted to MAIT CST Admin for review!');
-        }}
-      />
+      {/* Request Profile Update Modal (Alumni only) */}
+      {canRequestAlumniProfileUpdate(currentRole) && (
+        <RequestProfileUpdateModal
+          isOpen={isProfileUpdateModalOpen}
+          onClose={() => setIsProfileUpdateModalOpen(false)}
+          alumni={activeAlumni}
+          onSubmitUpdate={handleSubmitProfileUpdate}
+        />
+      )}
+
+      {/* Edit Student Profile Modal (Student only) */}
+      {canEditStudentProfile(currentRole) && (
+        <EditStudentProfileModal
+          isOpen={isStudentProfileModalOpen}
+          onClose={() => setIsStudentProfileModalOpen(false)}
+          student={student}
+          onSaveProfile={handleUpdateStudentProfile}
+        />
+      )}
 
       {/* Institutional Footer */}
       <footer className="border-t border-slate-200 bg-white py-8 mt-12 text-xs text-slate-500">

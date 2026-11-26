@@ -11,6 +11,17 @@ import {
   moderateProfileUpdate,
   mentorshipRequestSchema,
   opportunityPostingSchema,
+  studentProfileUpdateSchema,
+  canPostOpportunity,
+  canRegisterForOpportunity,
+  canRequestMentorship,
+  canRespondToMentorship,
+  canAccessAdminModeration,
+  canUseAiCareerGuidance,
+  canEditStudentProfile,
+  canRequestAlumniProfileUpdate,
+  canAccessTab,
+  getOpportunityStatusForRole,
 } from './alumni-ecosystem';
 import { AlumniProfile, Opportunity, MentorshipRequest, PendingProfileUpdate } from '../types';
 
@@ -214,3 +225,68 @@ test('Zod schemas validate mentorship requests and opportunity postings', () => 
   });
   assert.equal(validOpp.success, true);
 });
+
+test('RBAC permissions strictly enforce Student, Alumni, and Admin rules', () => {
+  // Student role
+  assert.equal(canPostOpportunity('student'), false);
+  assert.equal(canRegisterForOpportunity('student'), true);
+  assert.equal(canRequestMentorship('student'), true);
+  assert.equal(canRespondToMentorship('student'), false);
+  assert.equal(canAccessAdminModeration('student'), false);
+  assert.equal(canUseAiCareerGuidance('student'), true);
+  assert.equal(canEditStudentProfile('student'), true);
+  assert.equal(canRequestAlumniProfileUpdate('student'), false);
+  assert.equal(canAccessTab('student', 'admin-moderation'), false);
+  assert.equal(canAccessTab('student', 'ai-guidance'), true);
+
+  // Alumni role
+  assert.equal(canPostOpportunity('alumni'), true);
+  assert.equal(getOpportunityStatusForRole('alumni'), 'pending');
+  assert.equal(canRegisterForOpportunity('alumni'), false);
+  assert.equal(canRequestMentorship('alumni'), false);
+  assert.equal(canRespondToMentorship('alumni'), true);
+  assert.equal(canAccessAdminModeration('alumni'), false);
+  assert.equal(canUseAiCareerGuidance('alumni'), false);
+  assert.equal(canEditStudentProfile('alumni'), false);
+  assert.equal(canRequestAlumniProfileUpdate('alumni'), true);
+  assert.equal(canAccessTab('alumni', 'admin-moderation'), false);
+  assert.equal(canAccessTab('alumni', 'ai-guidance'), false);
+
+  // Admin role
+  assert.equal(canPostOpportunity('admin'), true);
+  assert.equal(getOpportunityStatusForRole('admin'), 'approved');
+  assert.equal(canRegisterForOpportunity('admin'), false);
+  assert.equal(canRequestMentorship('admin'), false);
+  assert.equal(canRespondToMentorship('admin'), false);
+  assert.equal(canAccessAdminModeration('admin'), true);
+  assert.equal(canUseAiCareerGuidance('admin'), false);
+  assert.equal(canEditStudentProfile('admin'), false);
+  assert.equal(canRequestAlumniProfileUpdate('admin'), false);
+  assert.equal(canAccessTab('admin', 'admin-moderation'), true);
+  assert.equal(canAccessTab('admin', 'ai-guidance'), false);
+});
+
+test('studentProfileUpdateSchema validates student profile edits', () => {
+  const valid = studentProfileUpdateSchema.safeParse({
+    name: 'Aarav Sharma',
+    currentSemester: 7,
+    cgpa: 9.1,
+    skillsText: 'C++, TypeScript, Distributed Systems',
+    interestsText: 'Cloud Infrastructure',
+    dreamCompaniesText: 'Google, Microsoft',
+    bio: 'Final year CST student focusing on scalable backend systems.',
+    githubUrl: 'https://github.com/aarav-mait',
+    linkedinUrl: '',
+  });
+  assert.equal(valid.success, true);
+
+  const invalidCgpa = studentProfileUpdateSchema.safeParse({
+    name: 'Aarav Sharma',
+    currentSemester: 9,
+    cgpa: 12,
+    skillsText: 'C++',
+    bio: 'Too short',
+  });
+  assert.equal(invalidCgpa.success, false);
+});
+

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MentorshipRequest, UserRole, StudentProfile, AlumniProfile, MentorshipStatus } from '../types';
+import { canRequestMentorship, canRespondToMentorship } from '../utils/alumni-ecosystem';
 import { 
   MessageSquare, 
   Clock, 
@@ -43,6 +44,9 @@ export const MentorshipModule: React.FC<MentorshipModuleProps> = ({
   const [responseNote, setResponseNote] = useState('');
   const [meetingUrl, setMeetingUrl] = useState('https://meet.google.com/mait-session');
 
+  const allowRequest = canRequestMentorship(currentRole);
+  const allowRespond = canRespondToMentorship(currentRole);
+
   // Filter requests according to active persona:
   const relevantRequests = mentorshipRequests.filter((r) => {
     if (currentRole === 'student') return r.studentId === student.id;
@@ -56,7 +60,7 @@ export const MentorshipModule: React.FC<MentorshipModuleProps> = ({
   });
 
   const handleConfirmAction = () => {
-    if (!actionModal) return;
+    if (!actionModal || !allowRespond) return;
 
     if (actionModal.action === 'accept') {
       onAcceptRequest(actionModal.request.id, responseNote, meetingUrl);
@@ -85,15 +89,17 @@ export const MentorshipModule: React.FC<MentorshipModuleProps> = ({
             </p>
           </div>
 
-          <div className="shrink-0">
-            <button
-              onClick={() => onOpenMentorshipModal()}
-              className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm flex items-center gap-2 shadow-xs transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Request 1:1 Mentorship</span>
-            </button>
-          </div>
+          {allowRequest && (
+            <div className="shrink-0">
+              <button
+                onClick={() => onOpenMentorshipModal()}
+                className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Request 1:1 Mentorship</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Status Filter Tabs */}
@@ -148,6 +154,15 @@ export const MentorshipModule: React.FC<MentorshipModuleProps> = ({
         </div>
       )}
 
+      {currentRole === 'admin' && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center gap-3 text-xs text-slate-700">
+          <Briefcase className="w-5 h-5 text-slate-700 shrink-0" />
+          <div>
+            <span className="font-semibold text-slate-900">Admin Oversight (Read-Only):</span> Monitor student-alumni mentorship pairings across MAIT CST. Only students can request mentorship and only alumni can accept or decline requests.
+          </div>
+        </div>
+      )}
+
       {/* Requests List */}
       {filteredRequests.length === 0 ? (
         <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl text-slate-500 shadow-xs">
@@ -158,7 +173,7 @@ export const MentorshipModule: React.FC<MentorshipModuleProps> = ({
               ? 'Send a mentorship inquiry to any MAIT CST alumnus in the directory.'
               : 'No incoming mentorship requests matching this filter.'}
           </p>
-          {currentRole === 'student' && (
+          {allowRequest && (
             <button
               onClick={() => onOpenMentorshipModal()}
               className="mt-4 px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white cursor-pointer shadow-xs"
@@ -255,7 +270,7 @@ export const MentorshipModule: React.FC<MentorshipModuleProps> = ({
                 </div>
 
                 {/* Alumni Sole Action Buttons */}
-                {req.status === 'pending' && (currentRole === 'alumni' || currentRole === 'admin') && (
+                {req.status === 'pending' && allowRespond && (
                   <div className="flex items-center gap-2 ml-auto">
                     <button
                       onClick={() => {
@@ -287,8 +302,8 @@ export const MentorshipModule: React.FC<MentorshipModuleProps> = ({
         </div>
       )}
 
-      {/* Confirmation Modal for Accept/Decline */}
-      {actionModal && (
+      {/* Confirmation Modal for Accept/Decline (Alumni only) */}
+      {actionModal && allowRespond && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fade-in">
           <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl p-6 shadow-2xl text-slate-900">
             <div className="flex items-center justify-between mb-4">

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AlumniProfile, UserRole } from '../types';
-import { filterAlumni } from '../utils/alumni-ecosystem';
+import { filterAlumni, canRequestMentorship } from '../utils/alumni-ecosystem';
 import { UserAvatar } from './UserAvatar';
 import { 
   Search, 
@@ -59,6 +59,7 @@ export const AlumniDirectory: React.FC<AlumniDirectoryProps> = ({
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [gradYearMin, setGradYearMin] = useState<number>(2015);
   const [selectedAlumniForDetail, setSelectedAlumniForDetail] = useState<AlumniProfile | null>(null);
+  const allowRequestMentorship = canRequestMentorship(currentRole);
 
   const toggleSkill = (skill: string) => {
     setSelectedSkills((prev) =>
@@ -303,18 +304,20 @@ export const AlumniDirectory: React.FC<AlumniDirectoryProps> = ({
                   >
                     View
                   </button>
-                  <button
-                    onClick={() => onRequestMentorship(alumni)}
-                    disabled={!alumni.isAvailableForMentoring}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
-                      alumni.isAvailableForMentoring
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer'
-                        : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                    }`}
-                  >
-                    <MessageSquare className="w-3 h-3" />
-                    <span>Request 1:1</span>
-                  </button>
+                  {allowRequestMentorship && (
+                    <button
+                      onClick={() => onRequestMentorship(alumni)}
+                      disabled={!alumni.isAvailableForMentoring}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 ${
+                        alumni.isAvailableForMentoring
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer'
+                          : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                      }`}
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      <span>Request 1:1</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -434,22 +437,24 @@ export const AlumniDirectory: React.FC<AlumniDirectoryProps> = ({
                 >
                   Close
                 </button>
-                <button
-                  onClick={() => {
-                    const alm = selectedAlumniForDetail;
-                    setSelectedAlumniForDetail(null);
-                    onRequestMentorship(alm);
-                  }}
-                  disabled={!selectedAlumniForDetail.isAvailableForMentoring}
-                  className={`px-5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs ${
-                    selectedAlumniForDetail.isAvailableForMentoring
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
-                      : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                  }`}
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Request Mentorship Session</span>
-                </button>
+                {allowRequestMentorship && (
+                  <button
+                    onClick={() => {
+                      const alm = selectedAlumniForDetail;
+                      setSelectedAlumniForDetail(null);
+                      onRequestMentorship(alm);
+                    }}
+                    disabled={!selectedAlumniForDetail.isAvailableForMentoring}
+                    className={`px-5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs ${
+                      selectedAlumniForDetail.isAvailableForMentoring
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+                        : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                    }`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Request Mentorship Session</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>

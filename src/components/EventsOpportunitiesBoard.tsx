@@ -1,6 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Opportunity, OpportunityType, UserRole, StudentProfile } from '../types';
-import { filterOpportunities } from '../utils/alumni-ecosystem';
+import {
+  filterOpportunities,
+  canPostOpportunity,
+  canRegisterForOpportunity,
+} from '../utils/alumni-ecosystem';
 import confetti from 'canvas-confetti';
 import { 
   Briefcase, 
@@ -33,6 +37,9 @@ export const EventsOpportunitiesBoard: React.FC<EventsOpportunitiesBoardProps> =
   const [modeFilter, setModeFilter] = useState<'all' | 'Remote' | 'Hybrid' | 'On-site'>('all');
   const [selectedOppForModal, setSelectedOppForModal] = useState<Opportunity | null>(null);
 
+  const canPost = canPostOpportunity(currentRole);
+  const canRegister = canRegisterForOpportunity(currentRole);
+
   // Filter approved opportunities (or all if admin)
   const filteredOpps = useMemo(() => {
     return filterOpportunities(opportunities, {
@@ -44,6 +51,7 @@ export const EventsOpportunitiesBoard: React.FC<EventsOpportunitiesBoardProps> =
   }, [opportunities, selectedType, searchQuery, modeFilter, currentRole]);
 
   const handleRegister = (opp: Opportunity) => {
+    if (!canRegister) return;
     onToggleRegistration(opp.id);
     const isCurrentlyRegistered = opp.registeredStudentIds.includes(student.id);
 
@@ -91,15 +99,17 @@ export const EventsOpportunitiesBoard: React.FC<EventsOpportunitiesBoardProps> =
             </p>
           </div>
 
-          <div className="shrink-0">
-            <button
-              onClick={onOpenPostModal}
-              className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm flex items-center gap-2 shadow-xs transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Post Opportunity / Event</span>
-            </button>
-          </div>
+          {canPost && (
+            <div className="shrink-0">
+              <button
+                onClick={onOpenPostModal}
+                className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Post Opportunity / Event</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Filter controls */}
@@ -183,7 +193,7 @@ export const EventsOpportunitiesBoard: React.FC<EventsOpportunitiesBoardProps> =
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {filteredOpps.map((opp) => {
-            const isRegistered = opp.registeredStudentIds.includes(student.id);
+            const isRegistered = canRegister && opp.registeredStudentIds.includes(student.id);
 
             return (
               <div
@@ -206,6 +216,20 @@ export const EventsOpportunitiesBoard: React.FC<EventsOpportunitiesBoardProps> =
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>Registered</span>
+                      </span>
+                    )}
+
+                    {currentRole === 'admin' && (
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase border ${
+                          opp.status === 'approved'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : opp.status === 'pending'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : 'bg-rose-50 text-rose-700 border-rose-200'
+                        }`}
+                      >
+                        {opp.status}
                       </span>
                     )}
                   </div>
@@ -269,17 +293,19 @@ export const EventsOpportunitiesBoard: React.FC<EventsOpportunitiesBoardProps> =
                       View Details
                     </button>
 
-                    <button
-                      onClick={() => handleRegister(opp)}
-                      className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                        isRegistered
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs'
-                      }`}
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>{isRegistered ? 'Registered' : 'Register / Apply'}</span>
-                    </button>
+                    {canRegister && (
+                      <button
+                        onClick={() => handleRegister(opp)}
+                        className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          isRegistered
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{isRegistered ? 'Registered' : 'Register / Apply'}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -388,33 +414,35 @@ export const EventsOpportunitiesBoard: React.FC<EventsOpportunitiesBoardProps> =
                   Close
                 </button>
 
-                <button
-                  onClick={() => {
-                    handleRegister(selectedOppForModal);
-                    setSelectedOppForModal((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            registeredStudentIds: prev.registeredStudentIds.includes(student.id)
-                              ? prev.registeredStudentIds.filter((id) => id !== student.id)
-                              : [...prev.registeredStudentIds, student.id],
-                          }
-                        : null
-                    );
-                  }}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    selectedOppForModal.registeredStudentIds.includes(student.id)
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs'
-                  }`}
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>
-                    {selectedOppForModal.registeredStudentIds.includes(student.id)
-                      ? 'Registered (Click to Cancel)'
-                      : 'Register / Apply Now'}
-                  </span>
-                </button>
+                {canRegister && (
+                  <button
+                    onClick={() => {
+                      handleRegister(selectedOppForModal);
+                      setSelectedOppForModal((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              registeredStudentIds: prev.registeredStudentIds.includes(student.id)
+                                ? prev.registeredStudentIds.filter((id) => id !== student.id)
+                                : [...prev.registeredStudentIds, student.id],
+                            }
+                          : null
+                      );
+                    }}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      selectedOppForModal.registeredStudentIds.includes(student.id)
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>
+                      {selectedOppForModal.registeredStudentIds.includes(student.id)
+                        ? 'Registered (Click to Cancel)'
+                        : 'Register / Apply Now'}
+                    </span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
