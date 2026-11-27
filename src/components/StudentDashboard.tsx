@@ -1,6 +1,14 @@
-import React from 'react';
-import { StudentProfile, MentorshipRequest, Opportunity, AlumniProfile } from '../types';
+import React, { useState } from 'react';
+import {
+  StudentProfile,
+  MentorshipRequest,
+  Opportunity,
+  AlumniProfile,
+  SuccessStory,
+} from '../types';
 import { UserAvatar } from './UserAvatar';
+import { SuccessStoriesSection } from './SuccessStoriesSection';
+import { StudentAnalytics } from './StudentAnalytics';
 import { 
   GraduationCap, 
   Sparkles, 
@@ -9,11 +17,12 @@ import {
   CheckCircle2, 
   Clock, 
   ArrowRight, 
-  Briefcase, 
   ExternalLink,
   Users,
   Compass,
-  Edit3
+  Edit3,
+  BarChart3,
+  LayoutDashboard
 } from 'lucide-react';
 
 interface StudentDashboardProps {
@@ -21,9 +30,11 @@ interface StudentDashboardProps {
   mentorshipRequests: MentorshipRequest[];
   opportunities: Opportunity[];
   alumniList: AlumniProfile[];
+  successStories: SuccessStory[];
   onNavigateTab: (tab: string) => void;
   onRequestMentorship: (alumni: AlumniProfile) => void;
   onOpenEditProfileModal: () => void;
+  onOpenSuccessStoryModal: () => void;
 }
 
 export const StudentDashboard: React.FC<StudentDashboardProps> = ({
@@ -31,10 +42,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   mentorshipRequests,
   opportunities,
   alumniList,
+  successStories,
   onNavigateTab,
   onRequestMentorship,
   onOpenEditProfileModal,
+  onOpenSuccessStoryModal,
 }) => {
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'analytics'>('overview');
+
   const myRequests = mentorshipRequests.filter((r) => r.studentId === student.id);
   const acceptedRequests = myRequests.filter((r) => r.status === 'accepted');
   const pendingRequests = myRequests.filter((r) => r.status === 'pending');
@@ -109,6 +124,44 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         </div>
       </div>
 
+      {/* Student Dashboard Sub-Tabs: Overview vs Personal Analytics */}
+      <div className="border-b border-slate-200 flex items-center space-x-2 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('overview')}
+          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+            activeSubTab === 'overview'
+              ? 'border-blue-600 text-blue-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <LayoutDashboard className="w-4 h-4" />
+          <span>Overview & Success Stories</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('analytics')}
+          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+            activeSubTab === 'analytics'
+              ? 'border-blue-600 text-blue-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Analytics</span>
+        </button>
+      </div>
+
+      {activeSubTab === 'analytics' ? (
+        <StudentAnalytics
+          student={student}
+          opportunities={opportunities}
+          mentorshipRequests={mentorshipRequests}
+          onNavigateTab={onNavigateTab}
+        />
+      ) : (
+        <>
       {/* Metric Cards - Clean, Unhighlighted & Readable */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs">
@@ -369,6 +422,16 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* MAIT CST Student & Alumni Success Stories Highlight Cards */}
+      <SuccessStoriesSection
+        stories={successStories}
+        currentRole="student"
+        currentAuthorName={student.name}
+        onOpenSubmitModal={onOpenSuccessStoryModal}
+      />
+        </>
+      )}
     </div>
   );
 };

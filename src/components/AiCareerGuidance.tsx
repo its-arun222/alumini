@@ -36,6 +36,7 @@ export const AiCareerGuidance: React.FC<AiCareerGuidanceProps> = ({
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
+  const [fallbackNotice, setFallbackNotice] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -60,6 +61,7 @@ export const AiCareerGuidance: React.FC<AiCareerGuidanceProps> = ({
 
     setLoading(true);
     setAnswer(null);
+    setFallbackNotice(null);
 
     try {
       const res = await fetch('/api/career-guidance', {
@@ -72,23 +74,28 @@ export const AiCareerGuidance: React.FC<AiCareerGuidanceProps> = ({
       });
 
       if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
+        throw new Error(`Request failed (${res.status})`);
       }
 
       const data = await res.json();
       setAnswer(data.answer);
-    } catch (err: any) {
-      console.error('Failed to get career guidance:', err);
-      // Fallback response for offline resilience
+      if (data.isFallback && data.fallbackReason) {
+        setFallbackNotice(data.fallbackReason);
+      }
+    } catch {
+      // Graceful client-side fallback tailored to student's profile and current question
+      setFallbackNotice('Live connection was interrupted; showing tailored MAIT CST career guidance for your profile.');
       setAnswer(`### 🎯 Strategic Advice for ${student.name} (MAIT CST, Sem ${student.currentSemester})
 
-Based on your target skills (**${student.skills.slice(0, 4).join(', ')}**) and strong CGPA (**${student.cgpa}**):
+**Regarding your question:** *"${question.trim()}"*
 
-1. **Target Referral Windows:** Start reaching out to MAIT CST alumni at Google and Blinkit in July/August right before 7th semester placement season begins.
-2. **Project Depth:** Build an end-to-end distributed cache or message queue in Go/C++ that handles 10,000 requests/sec with benchmark metrics on GitHub.
-3. **Core Foundations:** Practice LeetCode Top Interview 150 focusing on Graphs, Trees, and Dynamic Programming.
+Based on your skills (**${student.skills.slice(0, 5).join(', ')}**), CGPA (**${student.cgpa}**), and target companies (**${student.dreamCompanies.slice(0, 4).join(', ')}**):
 
-*Tip: Check the MAIT Mentorship Hub to connect directly with Priya Goel (Google) or Rohan Verma (Blinkit).*`);
+1. **Target Referral Windows:** Reach out to MAIT CST alumni at ${student.dreamCompanies.slice(0, 2).join(' and ')} 4–6 weeks before early-career hiring windows open.
+2. **Project Proof of Work:** Ship a measurable, deployed project using ${student.skills.slice(0, 2).join(' + ')} with benchmarks and clear architecture notes on GitHub.
+3. **Core Interview Foundations:** Focus on NeetCode 150 (Graphs, Trees, Dynamic Programming) alongside OS, DBMS, and System Design fundamentals.
+
+*Tip: Connect with verified mentors in the MAIT Mentorship Hub for a 1:1 resume and interview review.*`);
     } finally {
       setLoading(false);
     }
@@ -104,6 +111,7 @@ Based on your target skills (**${student.skills.slice(0, 4).join(', ')}**) and s
   const handleClear = () => {
     setQuestion('');
     setAnswer(null);
+    setFallbackNotice(null);
     setValidationError(null);
   };
 
@@ -115,7 +123,7 @@ Based on your target skills (**${student.skills.slice(0, 4).join(', ')}**) and s
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold mb-2">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Stateless AI Career Guidance • Gemini 2.5 Flash</span>
+              <span>Stateless AI Career Guidance • Gemini 3.5 Flash Lite</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
               Instant AI Career Guidance for MAIT CST
@@ -306,8 +314,60 @@ Based on your target skills (**${student.skills.slice(0, 4).join(', ')}**) and s
                   </p>
                 </div>
               ) : answer ? (
-                <div className="space-y-4 text-xs text-slate-800 leading-relaxed font-normal whitespace-pre-line bg-slate-50 p-5 rounded-xl border border-slate-200">
-                  {answer}
+                <div className="space-y-3">
+                  {fallbackNotice && (
+                    <div className="px-3.5 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-medium">
+                      {fallbackNotice}
+                    </div>
+                  )}
+                  <div className="space-y-3 text-xs text-slate-800 leading-relaxed font-normal bg-slate-50 p-5 rounded-xl border border-slate-200">
+                    {answer.split('\n').map((rawLine, idx) => {
+                      const line = rawLine.trim();
+                      if (!line) return null;
+                      if (/^-{3,}$/.test(line)) {
+                        return <hr key={idx} className="border-slate-200 my-2" />;
+                      }
+                      const renderInline = (text: string) =>
+                        text.split(/(\*\*[^*]+\*\*)/g).map((segment, segIdx) =>
+                          segment.startsWith('**') && segment.endsWith('**') ? (
+                            <strong key={segIdx} className="font-semibold text-slate-900">
+                              {segment.slice(2, -2)}
+                            </strong>
+                          ) : (
+                            <React.Fragment key={segIdx}>{segment}</React.Fragment>
+                          )
+                        );
+                      if (line.startsWith('### ')) {
+                        return (
+                          <h4
+                            key={idx}
+                            className="text-sm font-bold text-slate-900 pt-2 first:pt-0"
+                          >
+                            {renderInline(line.replace(/^###\s+/, ''))}
+                          </h4>
+                        );
+                      }
+                      if (line.startsWith('## ')) {
+                        return (
+                          <h3
+                            key={idx}
+                            className="text-sm font-bold text-blue-900 pt-2 first:pt-0"
+                          >
+                            {renderInline(line.replace(/^##\s+/, ''))}
+                          </h3>
+                        );
+                      }
+                      if (/^[-*•]\s+/.test(line)) {
+                        return (
+                          <div key={idx} className="flex items-start gap-2 pl-2">
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                            <span>{renderInline(line.replace(/^[-*•]\s+/, ''))}</span>
+                          </div>
+                        );
+                      }
+                      return <p key={idx}>{renderInline(line)}</p>;
+                    })}
+                  </div>
                 </div>
               ) : (
                 <div className="py-16 text-center text-slate-500 space-y-3">

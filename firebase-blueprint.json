@@ -119,6 +119,25 @@
         "adminRemark": { "type": "string", "maxLength": 500 }
       },
       "required": ["id", "alumniId", "alumniName", "gradYear", "currentCompany", "requestedChanges", "reason", "submittedAt", "status"]
+    },
+    "SuccessStory": {
+      "title": "SuccessStory",
+      "description": "A student or alumni placement/internship success story submitted for MAIT CST Admin moderation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "authorRole": { "type": "string", "enum": ["student", "alumni"] },
+        "batchYear": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "company": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "roleTitle": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "mentorName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "storyText": { "type": "string", "minLength": 20, "maxLength": 1500 },
+        "tags": { "type": "array" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "authorName", "authorRole", "batchYear", "company", "roleTitle", "mentorName", "storyText", "tags", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -141,6 +160,10 @@
     "/pending_profile_updates/{updateId}": {
       "schema": { "$ref": "#/entities/PendingProfileUpdate" },
       "description": "Alumni profile update requests awaiting admin approval."
+    },
+    "/success_stories/{storyId}": {
+      "schema": { "$ref": "#/entities/SuccessStory" },
+      "description": "Student and alumni placement/mentorship success stories with admin moderation."
     }
   }
 }

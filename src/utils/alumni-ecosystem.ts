@@ -43,6 +43,10 @@ export function canRequestAlumniProfileUpdate(role: UserRole): boolean {
   return role === 'alumni';
 }
 
+export function canSubmitSuccessStory(role: UserRole): boolean {
+  return role === 'student' || role === 'alumni';
+}
+
 export function getOpportunityStatusForRole(role: UserRole): ModerationStatus {
   return role === 'admin' ? 'approved' : 'pending';
 }
@@ -115,6 +119,17 @@ export const careerQuerySchema = z.object({
 });
 
 export type CareerQueryFormData = z.infer<typeof careerQuerySchema>;
+
+export const successStorySchema = z.object({
+  company: z.string().min(2, 'Company name must be at least 2 characters.').max(120),
+  roleTitle: z.string().min(2, 'Role or internship title is required.').max(120),
+  batchYear: z.string().min(4, 'Enter a valid graduation/batch year (e.g. 2026).').max(32),
+  mentorName: z.string().min(2, 'Credit the MAIT alumni mentor or faculty advisor.').max(100),
+  storyText: z.string().min(20, 'Please share at least 20 characters about your journey.').max(1500),
+  tagsText: z.string().min(2, 'Add at least one tag (comma-separated, e.g. Google Referral, DSA).'),
+});
+
+export type SuccessStoryFormData = z.infer<typeof successStorySchema>;
 
 // Semantic & Keyword Alumni Filtering
 export interface AlumniFilterOptions {

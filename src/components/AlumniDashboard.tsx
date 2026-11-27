@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { AlumniProfile, MentorshipRequest, Opportunity } from '../types';
+import { AlumniProfile, MentorshipRequest, Opportunity, SuccessStory } from '../types';
 import { UserAvatar } from './UserAvatar';
+import { SuccessStoriesSection } from './SuccessStoriesSection';
 import { 
   Briefcase, 
   CheckCircle2, 
   XCircle, 
   Plus, 
-  Clock, 
   ShieldCheck, 
   Edit3, 
   Video,
@@ -17,10 +17,12 @@ interface AlumniDashboardProps {
   alumni: AlumniProfile;
   mentorshipRequests: MentorshipRequest[];
   opportunities: Opportunity[];
+  successStories: SuccessStory[];
   onAcceptRequest: (requestId: string, note?: string, meetingUrl?: string) => void;
   onDeclineRequest: (requestId: string, note?: string) => void;
   onOpenPostModal: () => void;
   onOpenProfileUpdateModal: () => void;
+  onOpenSuccessStoryModal: () => void;
   onToggleMentorshipAvailability: () => void;
   onNavigateTab: (tab: string) => void;
 }
@@ -29,10 +31,12 @@ export const AlumniDashboard: React.FC<AlumniDashboardProps> = ({
   alumni,
   mentorshipRequests,
   opportunities,
+  successStories,
   onAcceptRequest,
   onDeclineRequest,
   onOpenPostModal,
   onOpenProfileUpdateModal,
+  onOpenSuccessStoryModal,
   onToggleMentorshipAvailability,
 }) => {
   const [selectedRequestForAction, setSelectedRequestForAction] = useState<{
@@ -376,6 +380,14 @@ export const AlumniDashboard: React.FC<AlumniDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* MAIT CST Student & Alumni Success Stories Highlight Cards */}
+      <SuccessStoriesSection
+        stories={successStories}
+        currentRole="alumni"
+        currentAuthorName={alumni.name}
+        onOpenSubmitModal={onOpenSuccessStoryModal}
+      />
 
       {/* Confirmation Modal for Accept/Decline */}
       {selectedRequestForAction && (

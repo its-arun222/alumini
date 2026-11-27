@@ -113,3 +113,17 @@ export interface PendingProfileUpdate {
   status: ModerationStatus;
   adminRemark?: string;
 }
+
+export interface SuccessStory {
+  id: string;
+  authorName: string;
+  authorRole: 'student' | 'alumni';
+  batchYear: string;
+  company: string;
+  roleTitle: string;
+  mentorName: string;
+  storyText: string;
+  tags: string[];
+  status: ModerationStatus;
+  createdAt: string;
+}

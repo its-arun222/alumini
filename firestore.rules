@@ -180,6 +180,28 @@ service cloud.firestore {
         && isOptionalStringBounded(data, 'adminRemark', 500);
     }
 
+    function isValidSuccessStory(data) {
+      return data.keys().hasAll([
+          'id', 'authorName', 'authorRole', 'batchYear', 'company',
+          'roleTitle', 'mentorName', 'storyText', 'tags', 'status', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'authorName', 'authorRole', 'batchYear', 'company',
+          'roleTitle', 'mentorName', 'storyText', 'tags', 'status', 'createdAt'
+        ])
+        && isValidId(data.id)
+        && isStringBounded(data.authorName, 2, 100)
+        && data.authorRole in ['student', 'alumni']
+        && isStringBounded(data.batchYear, 4, 32)
+        && isStringBounded(data.company, 2, 120)
+        && isStringBounded(data.roleTitle, 2, 120)
+        && isStringBounded(data.mentorName, 2, 100)
+        && isStringBounded(data.storyText, 20, 1500)
+        && isStringListBounded(data.tags, 15)
+        && data.status in ['pending', 'approved', 'rejected']
+        && isStringBounded(data.createdAt, 4, 64);
+    }
+
     // 1. Students collection
     match /students/{studentId} {
       allow get: if isValidId(studentId);
@@ -281,6 +303,26 @@ service cloud.firestore {
         && existing().status == 'pending'
         && incoming().status in ['approved', 'rejected']
         && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'adminRemark']);
+      allow delete: if false;
+    }
+
+    // 6. Success Stories collection
+    match /success_stories/{storyId} {
+      allow get: if isValidId(storyId);
+      allow list: if request.query.limit <= 200;
+      allow create: if isValidId(storyId)
+        && incoming().id == storyId
+        && isValidSuccessStory(incoming())
+        && incoming().status == 'pending';
+      allow update: if isValidId(storyId)
+        && isValidSuccessStory(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().authorName == existing().authorName
+        && incoming().authorRole == existing().authorRole
+        && existing().status == 'pending'
+        && incoming().status in ['approved', 'rejected']
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
       allow delete: if false;
     }
   }

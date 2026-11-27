@@ -5,9 +5,11 @@ import {
   PendingProfileUpdate,
   AlumniProfile,
   MentorshipRequest,
+  SuccessStory,
 } from '../types';
 import { DbActivityEntry } from '../lib/firestoreService';
 import { LiveDatabaseInspector } from './LiveDatabaseInspector';
+import { AdminAnalytics } from './AdminAnalytics';
 import { 
   ShieldCheck, 
   CheckCircle2, 
@@ -20,7 +22,10 @@ import {
   X,
   FileText,
   Sparkles,
-  Database
+  Database,
+  Award,
+  BarChart3,
+  Building2
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -29,6 +34,7 @@ interface AdminDashboardProps {
   pendingUpdates: PendingProfileUpdate[];
   alumniList: AlumniProfile[];
   mentorshipRequests: MentorshipRequest[];
+  successStories: SuccessStory[];
   activityLog: DbActivityEntry[];
   lastSyncedAt: string | null;
   isRefreshingDb: boolean;
@@ -36,6 +42,8 @@ interface AdminDashboardProps {
   onClearActivityLog: () => void;
   onModerateOpportunity: (opportunityId: string, action: 'approved' | 'rejected') => void;
   onModerateProfileUpdate: (updateId: string, action: 'approved' | 'rejected', remark?: string) => void;
+  onModerateSuccessStory: (storyId: string, action: 'approved' | 'rejected') => void;
+  onExportAnalyticsSuccess?: () => void;
   onNavigateTab: (tab: string) => void;
 }
 
@@ -45,6 +53,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   pendingUpdates,
   alumniList,
   mentorshipRequests,
+  successStories,
   activityLog,
   lastSyncedAt,
   isRefreshingDb,
@@ -52,20 +61,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onClearActivityLog,
   onModerateOpportunity,
   onModerateProfileUpdate,
+  onModerateSuccessStory,
+  onExportAnalyticsSuccess,
   onNavigateTab,
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'opps' | 'profiles' | 'all-opps' | 'live-db'>('opps');
+  const [activeSubTab, setActiveSubTab] = useState<
+    'opps' | 'profiles' | 'stories' | 'all-opps' | 'analytics' | 'live-db'
+  >('opps');
 
   const pendingOpportunities = opportunities.filter((o) => o.status === 'pending');
   const pendingProfileUpdates = pendingUpdates.filter((u) => u.status === 'pending');
+  const pendingSuccessStories = successStories.filter((s) => s.status === 'pending');
 
-  const totalPendingCount = pendingOpportunities.length + pendingProfileUpdates.length;
+  const totalPendingCount =
+    pendingOpportunities.length +
+    pendingProfileUpdates.length +
+    pendingSuccessStories.length;
   const totalFirestoreDocs =
     students.length +
     alumniList.length +
     opportunities.length +
     mentorshipRequests.length +
-    pendingUpdates.length;
+    pendingUpdates.length +
+    successStories.length;
 
   return (
     <div className="space-y-6">
@@ -183,6 +201,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveSubTab('stories')}
+          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+            activeSubTab === 'stories'
+              ? 'border-blue-600 text-blue-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Award className="w-4 h-4" />
+          <span>Success Stories</span>
+          {pendingSuccessStories.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800 font-bold">
+              {pendingSuccessStories.length}
+            </span>
+          )}
+        </button>
+
+        <button
           onClick={() => setActiveSubTab('all-opps')}
           className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
             activeSubTab === 'all-opps'
@@ -192,6 +227,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         >
           <FileText className="w-4 h-4" />
           <span>All Opportunities ({opportunities.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveSubTab('analytics')}
+          className={`pb-3 px-4 text-xs font-semibold flex items-center gap-2 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+            activeSubTab === 'analytics'
+              ? 'border-blue-600 text-blue-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" />
+          <span>Analytics</span>
         </button>
 
         <button
@@ -497,7 +544,108 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       )}
-      {/* Tab 4: Live Firestore Database Inspector */}
+      {/* Tab 3: Success Stories Moderation */}
+      {activeSubTab === 'stories' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <h2 className="text-base font-bold text-slate-900">
+              Pending Success Stories Moderation
+            </h2>
+            <p className="text-xs text-slate-500">
+              Approved stories publish immediately to both Student and Alumni dashboards.
+            </p>
+          </div>
+
+          {pendingSuccessStories.length === 0 ? (
+            <div className="text-center py-12 bg-white border border-slate-200 rounded-2xl text-slate-500 shadow-xs">
+              <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-600 mb-2" />
+              <p className="text-base font-bold text-slate-900">No Pending Success Stories</p>
+              <p className="text-xs text-slate-500 mt-1">
+                All submitted student & alumni placement stories have been reviewed ({successStories.filter((s) => s.status === 'approved').length} published live).
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {pendingSuccessStories.map((story) => (
+                <div
+                  key={story.id}
+                  className="bg-white border border-slate-200 rounded-2xl p-6 hover:border-slate-300 transition-all space-y-4 shadow-xs"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold">
+                          <Building2 className="w-3 h-3" />
+                          <span>{story.company}</span>
+                        </span>
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-semibold uppercase">
+                          {story.authorRole} · Batch {story.batchYear}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          • {story.createdAt.slice(0, 10)}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900">{story.roleTitle}</h3>
+                      <p className="text-xs text-slate-600 mt-0.5">
+                        Submitted by <strong className="text-slate-900">{story.authorName}</strong> · Mentor credited: <strong className="text-emerald-700">{story.mentorName}</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    "{story.storyText}"
+                  </p>
+
+                  {story.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {story.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 border border-slate-200 font-medium"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => onModerateSuccessStory(story.id, 'rejected')}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <XCircle className="w-4 h-4 text-rose-600" />
+                      <span>Reject Story</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onModerateSuccessStory(story.id, 'approved')}
+                      className="px-5 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Approve & Publish Story</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 4: Institutional Analytics (Recharts + CSV Export) */}
+      {activeSubTab === 'analytics' && (
+        <AdminAnalytics
+          alumniList={alumniList}
+          opportunities={opportunities}
+          mentorshipRequests={mentorshipRequests}
+          successStories={successStories}
+          onExportSuccess={onExportAnalyticsSuccess}
+        />
+      )}
+
+      {/* Tab 5: Live Firestore Database Inspector */}
       {activeSubTab === 'live-db' && (
         <LiveDatabaseInspector
           students={students}
@@ -505,6 +653,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           opportunities={opportunities}
           mentorshipRequests={mentorshipRequests}
           pendingUpdates={pendingUpdates}
+          successStories={successStories}
           activityLog={activityLog}
           lastSyncedAt={lastSyncedAt}
           isRefreshing={isRefreshingDb}

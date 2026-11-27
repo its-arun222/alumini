@@ -18,6 +18,7 @@ import {
   Opportunity,
   MentorshipRequest,
   PendingProfileUpdate,
+  SuccessStory,
 } from '../types';
 import {
   CURRENT_STUDENT,
@@ -25,6 +26,7 @@ import {
   INITIAL_OPPORTUNITIES,
   INITIAL_MENTORSHIP_REQUESTS,
   INITIAL_PENDING_UPDATES,
+  INITIAL_SUCCESS_STORIES,
 } from '../data/seedData';
 
 export type FirestoreCollectionName =
@@ -32,7 +34,8 @@ export type FirestoreCollectionName =
   | 'alumni'
   | 'opportunities'
   | 'mentorship_requests'
-  | 'pending_profile_updates';
+  | 'pending_profile_updates'
+  | 'success_stories';
 
 export interface DbActivityEntry {
   id: string;
@@ -49,6 +52,7 @@ export interface LiveDatabaseSnapshot {
   opportunities: Opportunity[];
   mentorship_requests: MentorshipRequest[];
   pending_profile_updates: PendingProfileUpdate[];
+  success_stories: SuccessStory[];
 }
 
 // Observable real-time Read/Write Activity Log
@@ -117,6 +121,10 @@ function sortPendingUpdates(items: PendingProfileUpdate[]): PendingProfileUpdate
 
 function sortAlumni(items: AlumniProfile[]): AlumniProfile[] {
   return [...items].sort((a, b) => b.gradYear - a.gradYear || a.name.localeCompare(b.name));
+}
+
+function sortSuccessStories(items: SuccessStory[]): SuccessStory[] {
+  return [...items].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }
 
 const MAX_COLLECTION_QUERY_LIMIT = 200;
@@ -220,6 +228,26 @@ export function ensureFirestoreSeeded(): Promise<void> {
       recordDbActivity('ERROR', 'pending_profile_updates', `Seed check failed: ${error instanceof Error ? error.message : String(error)}`);
       handleFirestoreError(error, OperationType.WRITE, 'pending_profile_updates');
     }
+
+    // 6. Success Stories (honors Firestore state-machine rule: stories start pending, then approved if pre-approved in seed)
+    try {
+      const snap = await getDocs(boundedCollectionQuery('success_stories'));
+      if (snap.empty) {
+        for (const story of INITIAL_SUCCESS_STORIES) {
+          const ref = doc(db, 'success_stories', story.id);
+          if (story.status === 'approved') {
+            await setDoc(ref, stripUndefined({ ...story, status: 'pending' }));
+            await updateDoc(ref, { status: 'approved' });
+          } else {
+            await setDoc(ref, stripUndefined(story));
+          }
+        }
+        recordDbActivity('SEED', 'success_stories', `Seeded ${INITIAL_SUCCESS_STORIES.length} MAIT CST success stories`);
+      }
+    } catch (error) {
+      recordDbActivity('ERROR', 'success_stories', `Seed check failed: ${error instanceof Error ? error.message : String(error)}`);
+      handleFirestoreError(error, OperationType.WRITE, 'success_stories');
+    }
   })().catch((err) => {
     seedingPromise = null;
     throw err;
@@ -244,14 +272,21 @@ export async function fetchAllCollectionsFromServer(): Promise<LiveDatabaseSnaps
     }
   };
 
-  const [students, alumni, opportunities, mentorship_requests, pending_profile_updates] =
-    await Promise.all([
-      readCol<StudentProfile>('students'),
-      readCol<AlumniProfile>('alumni'),
-      readCol<Opportunity>('opportunities'),
-      readCol<MentorshipRequest>('mentorship_requests'),
-      readCol<PendingProfileUpdate>('pending_profile_updates'),
-    ]);
+  const [
+    students,
+    alumni,
+    opportunities,
+    mentorship_requests,
+    pending_profile_updates,
+    success_stories,
+  ] = await Promise.all([
+    readCol<StudentProfile>('students'),
+    readCol<AlumniProfile>('alumni'),
+    readCol<Opportunity>('opportunities'),
+    readCol<MentorshipRequest>('mentorship_requests'),
+    readCol<PendingProfileUpdate>('pending_profile_updates'),
+    readCol<SuccessStory>('success_stories'),
+  ]);
 
   return {
     students,
@@ -259,11 +294,12 @@ export async function fetchAllCollectionsFromServer(): Promise<LiveDatabaseSnaps
     opportunities: sortOpportunities(opportunities),
     mentorship_requests: sortMentorshipRequests(mentorship_requests),
     pending_profile_updates: sortPendingUpdates(pending_profile_updates),
+    success_stories: sortSuccessStories(success_stories),
   };
 }
 
 /**
- * Attaches real-time Firestore onSnapshot listeners to all 5 collections.
+ * Attaches real-time Firestore onSnapshot listeners to all 6 collections.
  */
 export function subscribeAllCollections(callbacks: {
   onStudents: (items: StudentProfile[]) => void;
@@ -271,6 +307,7 @@ export function subscribeAllCollections(callbacks: {
   onOpportunities: (items: Opportunity[]) => void;
   onMentorshipRequests: (items: MentorshipRequest[]) => void;
   onPendingUpdates: (items: PendingProfileUpdate[]) => void;
+  onSuccessStories: (items: SuccessStory[]) => void;
   onError: (err: Error) => void;
 }): () => void {
   const unsubs: Unsubscribe[] = [];
@@ -305,6 +342,7 @@ export function subscribeAllCollections(callbacks: {
   attach<Opportunity>('opportunities', callbacks.onOpportunities, sortOpportunities);
   attach<MentorshipRequest>('mentorship_requests', callbacks.onMentorshipRequests, sortMentorshipRequests);
   attach<PendingProfileUpdate>('pending_profile_updates', callbacks.onPendingUpdates, sortPendingUpdates);
+  attach<SuccessStory>('success_stories', callbacks.onSuccessStories, sortSuccessStories);
 
   return () => {
     unsubs.forEach((u) => u());
@@ -526,5 +564,41 @@ export async function moderateProfileUpdateInFirestore(
   } catch (error) {
     recordDbActivity('ERROR', 'pending_profile_updates', `Failed to moderate update for ${targetUpdate.alumniName}`, targetUpdate.id);
     handleFirestoreError(error, OperationType.UPDATE, updatePath);
+  }
+}
+
+export async function createSuccessStoryInFirestore(story: SuccessStory): Promise<void> {
+  const path = `success_stories/${story.id}`;
+  try {
+    await setDoc(doc(db, 'success_stories', story.id), stripUndefined(story));
+    recordDbActivity(
+      'WRITE',
+      'success_stories',
+      `Submitted "${story.company} — ${story.roleTitle}" by ${story.authorName} (${story.status})`,
+      story.id
+    );
+  } catch (error) {
+    recordDbActivity('ERROR', 'success_stories', `Failed to submit success story for ${story.company}`, story.id);
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function moderateSuccessStoryInFirestore(
+  storyId: string,
+  action: 'approved' | 'rejected',
+  label?: string
+): Promise<void> {
+  const path = `success_stories/${storyId}`;
+  try {
+    await updateDoc(doc(db, 'success_stories', storyId), { status: action });
+    recordDbActivity(
+      'WRITE',
+      'success_stories',
+      `Moderated success story "${label || storyId}" -> ${action}`,
+      storyId
+    );
+  } catch (error) {
+    recordDbActivity('ERROR', 'success_stories', `Failed to moderate success story "${label || storyId}"`, storyId);
+    handleFirestoreError(error, OperationType.UPDATE, path);
   }
 }

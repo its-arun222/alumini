@@ -6,6 +6,7 @@ import {
   Opportunity,
   MentorshipRequest,
   PendingProfileUpdate,
+  SuccessStory,
 } from './types';
 import {
   canPostOpportunity,
@@ -16,6 +17,7 @@ import {
   canUseAiCareerGuidance,
   canEditStudentProfile,
   canRequestAlumniProfileUpdate,
+  canSubmitSuccessStory,
   canAccessTab,
   getOpportunityStatusForRole,
 } from './utils/alumni-ecosystem';
@@ -35,6 +37,8 @@ import {
   toggleAlumniAvailabilityInFirestore,
   createPendingProfileUpdateInFirestore,
   moderateProfileUpdateInFirestore,
+  createSuccessStoryInFirestore,
+  moderateSuccessStoryInFirestore,
 } from './lib/firestoreService';
 
 import { Navbar } from './components/Navbar';
@@ -51,6 +55,7 @@ import { MentorshipRequestModal } from './components/MentorshipRequestModal';
 import { PostOpportunityModal } from './components/PostOpportunityModal';
 import { RequestProfileUpdateModal } from './components/RequestProfileUpdateModal';
 import { EditStudentProfileModal } from './components/EditStudentProfileModal';
+import { SubmitSuccessStoryModal } from './components/SubmitSuccessStoryModal';
 import { Database, AlertTriangle, RefreshCw } from 'lucide-react';
 
 const SESSION_KEY = 'mait_connect_ui_session_v1';
@@ -97,6 +102,7 @@ export default function App() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [mentorshipRequests, setMentorshipRequests] = useState<MentorshipRequest[]>([]);
   const [pendingUpdates, setPendingUpdates] = useState<PendingProfileUpdate[]>([]);
+  const [successStories, setSuccessStories] = useState<SuccessStory[]>([]);
 
   // Firestore hydration & live activity state
   const [isDbLoading, setIsDbLoading] = useState<boolean>(true);
@@ -112,6 +118,7 @@ export default function App() {
   const [isPostOpportunityModalOpen, setIsPostOpportunityModalOpen] = useState(false);
   const [isProfileUpdateModalOpen, setIsProfileUpdateModalOpen] = useState(false);
   const [isStudentProfileModalOpen, setIsStudentProfileModalOpen] = useState(false);
+  const [isSuccessStoryModalOpen, setIsSuccessStoryModalOpen] = useState(false);
 
   // Toast notification
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -161,6 +168,7 @@ export default function App() {
         setOpportunities(snapshot.opportunities);
         setMentorshipRequests(snapshot.mentorship_requests);
         setPendingUpdates(snapshot.pending_profile_updates);
+        setSuccessStories(snapshot.success_stories);
         setLastSyncedAt(new Date().toISOString());
 
         if (
@@ -170,7 +178,7 @@ export default function App() {
           setSelectedAlumniId(snapshot.alumni[0].id);
         }
 
-        // Attach real-time onSnapshot listeners across all 5 collections
+        // Attach real-time onSnapshot listeners across all 6 collections
         unsubscribeAll = subscribeAllCollections({
           onStudents: (items) => {
             if (!isMounted) return;
@@ -195,6 +203,11 @@ export default function App() {
           onPendingUpdates: (items) => {
             if (!isMounted) return;
             setPendingUpdates(items);
+            setLastSyncedAt(new Date().toISOString());
+          },
+          onSuccessStories: (items) => {
+            if (!isMounted) return;
+            setSuccessStories(items);
             setLastSyncedAt(new Date().toISOString());
           },
           onError: (err) => {
@@ -227,8 +240,9 @@ export default function App() {
       setOpportunities(snapshot.opportunities);
       setMentorshipRequests(snapshot.mentorship_requests);
       setPendingUpdates(snapshot.pending_profile_updates);
+      setSuccessStories(snapshot.success_stories);
       setLastSyncedAt(new Date().toISOString());
-      showToast('Synced all 5 collections live from Cloud Firestore.');
+      showToast('Synced all 6 collections live from Cloud Firestore.');
     } catch (err: any) {
       setDbError(err?.message || 'Failed to refresh from Cloud Firestore.');
     } finally {
@@ -242,7 +256,8 @@ export default function App() {
 
   const pendingModerationCount =
     opportunities.filter((o) => o.status === 'pending').length +
-    pendingUpdates.filter((u) => u.status === 'pending').length;
+    pendingUpdates.filter((u) => u.status === 'pending').length +
+    successStories.filter((s) => s.status === 'pending').length;
 
   // Role-guarded navigation
   const handleNavigateTab = (tab: string) => {
@@ -260,6 +275,7 @@ export default function App() {
     setIsPostOpportunityModalOpen(false);
     setIsProfileUpdateModalOpen(false);
     setIsStudentProfileModalOpen(false);
+    setIsSuccessStoryModalOpen(false);
     setPreselectedAlumni(null);
     if (!canAccessTab(role, activeTab)) {
       setActiveTab('dashboard');
@@ -406,6 +422,45 @@ export default function App() {
       showToast(`Alumni profile update marked as ${action.toUpperCase()} & synced in Firestore.`);
     } catch (err: any) {
       showToast(`Profile moderation failed: ${err?.message || 'Unknown error'}`);
+    }
+  };
+
+  const handleOpenSuccessStoryModal = () => {
+    if (!canSubmitSuccessStory(currentRole)) return;
+    setIsSuccessStoryModalOpen(true);
+  };
+
+  const handleSubmitSuccessStory = async (story: SuccessStory) => {
+    if (!canSubmitSuccessStory(currentRole)) return;
+    const enforcedStory: SuccessStory = {
+      ...story,
+      authorRole: currentRole === 'alumni' ? 'alumni' : 'student',
+      status: 'pending',
+    };
+    try {
+      await createSuccessStoryInFirestore(enforcedStory);
+      showToast('Success story saved to Firestore as pending for Admin approval!');
+    } catch (err: any) {
+      showToast(`Failed to submit success story: ${err?.message || 'Unknown error'}`);
+      throw err;
+    }
+  };
+
+  const handleModerateSuccessStory = async (
+    storyId: string,
+    action: 'approved' | 'rejected'
+  ) => {
+    if (!canAccessAdminModeration(currentRole)) return;
+    const target = successStories.find((s) => s.id === storyId);
+    try {
+      await moderateSuccessStoryInFirestore(
+        storyId,
+        action,
+        target ? `${target.company} — ${target.roleTitle}` : storyId
+      );
+      showToast(`Success story marked as ${action.toUpperCase()} in Firestore.`);
+    } catch (err: any) {
+      showToast(`Success story moderation failed: ${err?.message || 'Unknown error'}`);
     }
   };
 
@@ -569,9 +624,11 @@ export default function App() {
                 mentorshipRequests={mentorshipRequests}
                 opportunities={opportunities}
                 alumniList={alumniList}
+                successStories={successStories}
                 onNavigateTab={handleNavigateTab}
                 onRequestMentorship={handleOpenMentorshipForAlumni}
                 onOpenEditProfileModal={handleOpenStudentProfileModal}
+                onOpenSuccessStoryModal={handleOpenSuccessStoryModal}
               />
             )}
 
@@ -580,10 +637,12 @@ export default function App() {
                 alumni={activeAlumni}
                 mentorshipRequests={mentorshipRequests}
                 opportunities={opportunities}
+                successStories={successStories}
                 onAcceptRequest={handleAcceptMentorship}
                 onDeclineRequest={handleDeclineMentorship}
                 onOpenPostModal={handleOpenPostOpportunityModal}
                 onOpenProfileUpdateModal={handleOpenProfileUpdateModal}
+                onOpenSuccessStoryModal={handleOpenSuccessStoryModal}
                 onToggleMentorshipAvailability={handleToggleMentorshipAvailability}
                 onNavigateTab={handleNavigateTab}
               />
@@ -596,6 +655,7 @@ export default function App() {
                 pendingUpdates={pendingUpdates}
                 alumniList={alumniList}
                 mentorshipRequests={mentorshipRequests}
+                successStories={successStories}
                 activityLog={activityLog}
                 lastSyncedAt={lastSyncedAt}
                 isRefreshingDb={isRefreshingDb}
@@ -603,6 +663,10 @@ export default function App() {
                 onClearActivityLog={clearDbActivityLog}
                 onModerateOpportunity={handleModerateOpportunity}
                 onModerateProfileUpdate={handleModerateProfileUpdate}
+                onModerateSuccessStory={handleModerateSuccessStory}
+                onExportAnalyticsSuccess={() =>
+                  showToast('Exported MAIT CST Institutional Analytics CSV report.')
+                }
                 onNavigateTab={handleNavigateTab}
               />
             )}
@@ -660,6 +724,7 @@ export default function App() {
             pendingUpdates={pendingUpdates}
             alumniList={alumniList}
             mentorshipRequests={mentorshipRequests}
+            successStories={successStories}
             activityLog={activityLog}
             lastSyncedAt={lastSyncedAt}
             isRefreshingDb={isRefreshingDb}
@@ -667,6 +732,10 @@ export default function App() {
             onClearActivityLog={clearDbActivityLog}
             onModerateOpportunity={handleModerateOpportunity}
             onModerateProfileUpdate={handleModerateProfileUpdate}
+            onModerateSuccessStory={handleModerateSuccessStory}
+            onExportAnalyticsSuccess={() =>
+              showToast('Exported MAIT CST Institutional Analytics CSV report.')
+            }
             onNavigateTab={handleNavigateTab}
           />
         )}
@@ -729,6 +798,22 @@ export default function App() {
           onClose={() => setIsStudentProfileModalOpen(false)}
           student={student}
           onSaveProfile={handleUpdateStudentProfile}
+        />
+      )}
+
+      {/* Submit Success Story Modal (Student & Alumni only) */}
+      {canSubmitSuccessStory(currentRole) && (
+        <SubmitSuccessStoryModal
+          key={`story-${currentRole}-${currentRole === 'alumni' ? activeAlumni.id : student.id}`}
+          isOpen={isSuccessStoryModalOpen}
+          onClose={() => setIsSuccessStoryModalOpen(false)}
+          authorName={currentRole === 'alumni' ? activeAlumni.name : student.name}
+          authorRole={currentRole === 'alumni' ? 'alumni' : 'student'}
+          defaultBatchYear={
+            currentRole === 'alumni' ? String(activeAlumni.gradYear) : student.batchYear
+          }
+          alumniList={alumniList}
+          onSubmitStory={handleSubmitSuccessStory}
         />
       )}
 

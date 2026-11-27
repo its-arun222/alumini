@@ -5,6 +5,7 @@ import {
   Opportunity,
   MentorshipRequest,
   PendingProfileUpdate,
+  SuccessStory,
 } from '../types';
 import {
   DbActivityEntry,
@@ -29,6 +30,7 @@ interface LiveDatabaseInspectorProps {
   opportunities: Opportunity[];
   mentorshipRequests: MentorshipRequest[];
   pendingUpdates: PendingProfileUpdate[];
+  successStories: SuccessStory[];
   activityLog: DbActivityEntry[];
   lastSyncedAt: string | null;
   isRefreshing: boolean;
@@ -46,6 +48,7 @@ const COLLECTION_META: {
   { id: 'opportunities', label: 'opportunities', description: 'Jobs, internships, webinars & reunions' },
   { id: 'mentorship_requests', label: 'mentorship_requests', description: '1:1 student-alumni requests' },
   { id: 'pending_profile_updates', label: 'pending_profile_updates', description: 'Profile moderation queue' },
+  { id: 'success_stories', label: 'success_stories', description: 'Placement & mentorship stories' },
 ];
 
 export const LiveDatabaseInspector: React.FC<LiveDatabaseInspectorProps> = ({
@@ -54,6 +57,7 @@ export const LiveDatabaseInspector: React.FC<LiveDatabaseInspectorProps> = ({
   opportunities,
   mentorshipRequests,
   pendingUpdates,
+  successStories,
   activityLog,
   lastSyncedAt,
   isRefreshing,
@@ -73,8 +77,9 @@ export const LiveDatabaseInspector: React.FC<LiveDatabaseInspectorProps> = ({
       opportunities,
       mentorship_requests: mentorshipRequests,
       pending_profile_updates: pendingUpdates,
+      success_stories: successStories,
     }),
-    [students, alumniList, opportunities, mentorshipRequests, pendingUpdates]
+    [students, alumniList, opportunities, mentorshipRequests, pendingUpdates, successStories]
   );
 
   const activeRows = collectionsMap[selectedCollection] || [];
@@ -134,7 +139,7 @@ export const LiveDatabaseInspector: React.FC<LiveDatabaseInspectorProps> = ({
             Live Firestore Database Inspector
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Real-time view of all 5 Cloud Firestore collections ({FIREBASE_CONFIG_META.databaseId})
+            Real-time view of all 6 Cloud Firestore collections ({FIREBASE_CONFIG_META.databaseId})
             {lastSyncedAt ? ` · Last synced ${formatTime(lastSyncedAt)}` : ''}
           </p>
         </div>
@@ -150,8 +155,8 @@ export const LiveDatabaseInspector: React.FC<LiveDatabaseInspectorProps> = ({
         </button>
       </div>
 
-      {/* 5 Collection Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      {/* 6 Collection Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
         {COLLECTION_META.map((col) => {
           const count = collectionsMap[col.id].length;
           const isSelected = selectedCollection === col.id;
@@ -272,11 +277,24 @@ export const LiveDatabaseInspector: React.FC<LiveDatabaseInspectorProps> = ({
                     <th className="px-4 py-3 text-right">Document</th>
                   </tr>
                 )}
+                {selectedCollection === 'success_stories' && (
+                  <tr>
+                    <th className="px-4 py-3">Document ID</th>
+                    <th className="px-4 py-3">Author & Batch</th>
+                    <th className="px-4 py-3">Company & Role</th>
+                    <th className="px-4 py-3">Mentor</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Document</th>
+                  </tr>
+                )}
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {filteredRows.map((row: any) => {
                   const isExpanded = expandedRowId === row.id;
-                  const colSpan = selectedCollection === 'opportunities' ? 6 : 5;
+                  const colSpan =
+                    selectedCollection === 'opportunities' || selectedCollection === 'success_stories'
+                      ? 6
+                      : 5;
                   return (
                     <React.Fragment key={row.id}>
                       <tr className="hover:bg-slate-50/80">
@@ -378,6 +396,27 @@ export const LiveDatabaseInspector: React.FC<LiveDatabaseInspectorProps> = ({
                               </div>
                             </td>
                             <td className="px-4 py-3 max-w-xs truncate">{row.reason}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {renderStatusPill(row.status)}
+                            </td>
+                          </>
+                        )}
+
+                        {selectedCollection === 'success_stories' && (
+                          <>
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-slate-900">{row.authorName}</div>
+                              <div className="text-[11px] text-slate-500 capitalize">
+                                {row.authorRole} · Batch {row.batchYear}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-semibold text-slate-900">{row.company}</div>
+                              <div className="text-[11px] text-slate-500">{row.roleTitle}</div>
+                            </td>
+                            <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                              {row.mentorName}
+                            </td>
                             <td className="px-4 py-3 whitespace-nowrap">
                               {renderStatusPill(row.status)}
                             </td>

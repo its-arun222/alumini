@@ -1,4 +1,4 @@
-import { AlumniProfile, Opportunity, MentorshipRequest, PendingProfileUpdate, StudentProfile } from '../types';
+import { AlumniProfile, Opportunity, MentorshipRequest, PendingProfileUpdate, StudentProfile, SuccessStory } from '../types';
 
 export const CURRENT_STUDENT: StudentProfile = {
   id: 'student-aarav-sharma',
@@ -414,4 +414,59 @@ export const INITIAL_PENDING_UPDATES: PendingProfileUpdate[] = [
     submittedAt: '2026-11-04T07:30:00Z',
     status: 'pending',
   }
+];
+
+export const INITIAL_SUCCESS_STORIES: SuccessStory[] = [
+  {
+    id: 'story-google-swe-intern',
+    authorName: 'Riya Bansal',
+    authorRole: 'student',
+    batchYear: '2026',
+    company: 'Google',
+    roleTitle: 'Software Engineering Intern (Cloud)',
+    mentorName: 'Priya Goel',
+    storyText: 'Through the MAIT Mentorship Hub, Priya reviewed my Go microservices project and ran two timed mock interviews before submitting my off-campus referral. Her structured feedback on graphs and system reliability helped me convert Google Cloud Bengaluru.',
+    tags: ['Google Referral', 'Mock Interviews', 'Distributed Systems', 'Off-Campus'],
+    status: 'approved',
+    createdAt: '2026-10-18T11:20:00Z',
+  },
+  {
+    id: 'story-microsoft-fte',
+    authorName: 'Kunal Arora',
+    authorRole: 'alumni',
+    batchYear: '2024',
+    company: 'Microsoft',
+    roleTitle: 'Software Engineer (FTE - Azure AI)',
+    mentorName: 'Ananya Singhal',
+    storyText: 'Connecting with Ananya during 7th semester completely transformed how I presented my NLP research project on my resume. After refining my fundamentals and applying through the alumni referral pool, I secured an FTE offer at Microsoft IDC Hyderabad.',
+    tags: ['Microsoft FTE', 'Resume Review', 'AI/ML', 'Azure'],
+    status: 'approved',
+    createdAt: '2026-10-24T15:40:00Z',
+  },
+  {
+    id: 'story-blinkit-backend',
+    authorName: 'Devansh Malhotra',
+    authorRole: 'student',
+    batchYear: '2025',
+    company: 'Blinkit (Zomato Group)',
+    roleTitle: 'Backend Engineer Intern -> PPO',
+    mentorName: 'Rohan Verma',
+    storyText: 'Rohan guided me on building an event-driven Kafka & Redis order dispatch simulator and shared the exact concurrency patterns tested in Blinkit interviews. I landed the Gurugram backend internship and converted it into a Pre-Placement Offer.',
+    tags: ['Blinkit PPO', 'Backend Systems', 'Kafka & Redis', 'Mentorship'],
+    status: 'approved',
+    createdAt: '2026-11-01T09:15:00Z',
+  },
+  {
+    id: 'story-goldman-quant',
+    authorName: 'Sneha Jindal',
+    authorRole: 'alumni',
+    batchYear: '2025',
+    company: 'Goldman Sachs',
+    roleTitle: 'Engineering Analyst (Low-Latency Core)',
+    mentorName: 'Divyansh Gupta',
+    storyText: 'Divyansh coached me on C++ memory models, OS internals, and competitive programming speed drills every weekend for a month. That focused prep directly helped me clear all four technical rounds for Goldman Sachs Bengaluru.',
+    tags: ['Goldman Sachs', 'C++ & OS', 'Competitive Programming', 'FTE'],
+    status: 'approved',
+    createdAt: '2026-11-06T14:00:00Z',
+  },
 ];
